@@ -166,6 +166,71 @@ def run_regressions(data):
     results['t10y_oil_lagged'] = sm.OLS(df_lag['d_t10y'], X).fit(cov_type='HC1')
     results['t3m_oil_lagged'] = sm.OLS(df_lag['d_t3m'], X).fit(cov_type='HC1')
 
+    # --- Shock-period regressions ---
+    oil_std = df['oil_chg'].std()
+
+    shock_defs = {
+        '1 SD (|oil| > 1 std dev)': df['oil_chg'].abs() > oil_std,
+        '1.5 SD (|oil| > 1.5 std dev)': df['oil_chg'].abs() > 1.5 * oil_std,
+        'Top/Bottom 10%': (df['oil_chg'] <= df['oil_chg'].quantile(0.10)) | (df['oil_chg'] >= df['oil_chg'].quantile(0.90)),
+        'Big move (|chg| > 10%)': df['oil_chg'].abs() > 10,
+        'Oil spike (>10%)': df['oil_chg'] > 10,
+        'Oil crash (<-10%)': df['oil_chg'] < -10,
+    }
+
+    # Named historical windows
+    historical_shocks = {
+        'Asian Crisis (1997-10 to 1998-12)': ('1997-10', '1998-12'),
+        'Dot-com / 9-11 (2001-01 to 2002-01)': ('2001-01', '2002-01'),
+        'Oil Super-Spike (2007-01 to 2008-07)': ('2007-01', '2008-07'),
+        'GFC Crash (2008-07 to 2009-04)': ('2008-07', '2009-04'),
+        'Oil Glut (2014-07 to 2016-02)': ('2014-07', '2016-02'),
+        'COVID Crash (2020-02 to 2020-06)': ('2020-02', '2020-06'),
+        'Post-COVID Spike (2021-01 to 2022-06)': ('2021-01', '2022-06'),
+    }
+    any_hist = pd.Series(False, index=df.index)
+    for _, (s, e) in historical_shocks.items():
+        any_hist = any_hist | ((df.index >= s) & (df.index <= e))
+    shock_defs['Any historical window'] = any_hist
+
+    results['_shock_defs'] = shock_defs
+    results['_historical_shocks'] = historical_shocks
+    results['_oil_std'] = float(oil_std)
+
+    def _run_subset(subset):
+        """Run the 3 key regressions on a subset, return dict of models or None."""
+        if len(subset) < 10:
+            return None
+        out = {}
+        try:
+            X = sm.add_constant(subset[['oil_chg', 'd_t3m', 'd_t10y']])
+            out['reit'] = sm.OLS(subset['excess_ret'], X).fit(cov_type='HC1')
+        except Exception:
+            pass
+        try:
+            X = sm.add_constant(subset[['oil_chg']])
+            out['t10y'] = sm.OLS(subset['d_t10y'], X).fit(cov_type='HC1')
+        except Exception:
+            pass
+        try:
+            X = sm.add_constant(subset[['oil_chg']])
+            out['t3m'] = sm.OLS(subset['d_t3m'], X).fit(cov_type='HC1')
+        except Exception:
+            pass
+        return out if out else None
+
+    # Run regressions for each shock definition
+    shock_results = {}
+    for label, mask in shock_defs.items():
+        shock_results[label] = _run_subset(df[mask])
+    # Also run on calm months (1 SD definition)
+    calm_mask = df['oil_chg'].abs() <= oil_std
+    shock_results['Calm months (|oil| < 1 SD)'] = _run_subset(df[calm_mask])
+
+    results['_shock_results'] = shock_results
+    results['_shock_counts'] = {label: int(mask.sum()) for label, mask in shock_defs.items()}
+    results['_shock_counts']['Calm months (|oil| < 1 SD)'] = int(calm_mask.sum())
+
     return results
 
 

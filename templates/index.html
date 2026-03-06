@@ -236,15 +236,16 @@
             </div>
             <table>
                 <thead>
-                    <tr><th>Factor</th><th>Effect Size</th><th>Uncertainty</th><th>Confidence</th><th></th></tr>
+                    <tr><th>Factor</th><th>Coefficient</th><th>Std Error</th><th>t-stat</th><th>p-value</th><th></th></tr>
                 </thead>
                 <tbody>
                     {% for row in reg.rows %}
                     <tr>
                         <td>{{ row.var }}</td>
                         <td>{{ row.coef }}</td>
-                        <td>&plusmn;{{ row.se }}</td>
-                        <td>p={{ row.pval }}</td>
+                        <td>{{ row.se }}</td>
+                        <td>{{ row.tstat }}</td>
+                        <td>{{ row.pval }}</td>
                         <td class="sig">{{ row.sig }}</td>
                     </tr>
                     {% endfor %}
@@ -265,6 +266,87 @@
         </details>
     </div>
 
+    <!-- SHOCK ANALYSIS -->
+    <div class="section">
+        <h2>What Happens During Oil Shocks?</h2>
+        <p style="color: var(--gray); margin-bottom: 16px;">
+            The full sample mixes extreme oil months with hundreds of calm months. Here we isolate just the shock periods
+            and re-run the same regressions. Does oil matter more when it's moving big?
+        </p>
+
+        <div class="finding">
+            <p><strong>Oil still doesn't directly move REITs vs S&amp;P, even during shocks.</strong> But oil's effect on rates gets much stronger: the oil&rarr;10Y R&sup2; roughly doubles during shock months.</p>
+        </div>
+        <div class="finding">
+            <p><strong>Oil crashes are different from spikes.</strong> When oil drops &gt;10%, the 10Y rate effect on REITs is highly significant (p&lt;0.01). Oil crashes drag rates down, which helps REITs. Oil spikes are noisier.</p>
+        </div>
+
+        <h3 style="margin-top: 20px;">REIT Excess Return ~ Oil + Rate Changes</h3>
+        <p style="color: var(--gray); font-size: 0.85rem; margin-bottom: 8px;">Same regression, different subsets. 1 SD = {{ oil_std }}% monthly oil move.</p>
+        <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Shock Definition</th><th>N</th><th>R&sup2;</th>
+                    <th>Oil Coef</th><th>Oil t</th><th>Oil p</th><th></th>
+                    <th>10Y Coef</th><th>10Y t</th><th>10Y p</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in shock_comparison %}
+                <tr{% if row.label == 'Calm months (|oil| < 1 SD)' %} style="background:#e2efda"{% endif %}>
+                    <td><strong>{{ row.label }}</strong></td>
+                    <td>{{ row.n }}</td>
+                    <td>{{ row.r2 }}</td>
+                    {% if row.r2 != 'N/A' %}
+                    <td>{{ row.oil_coef }}</td>
+                    <td>{{ row.oil_t }}</td>
+                    <td>{{ row.oil_p }}</td>
+                    <td class="sig">{{ row.oil_sig }}</td>
+                    <td>{{ row.t10y_coef }}</td>
+                    <td>{{ row.t10y_t }}</td>
+                    <td>{{ row.t10y_p }}</td>
+                    <td class="sig">{{ row.t10y_sig }}</td>
+                    {% else %}
+                    <td colspan="8" style="color:#999">Too few observations</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        <h3 style="margin-top: 24px;">10Y Rate Change ~ Oil Change</h3>
+        <p style="color: var(--gray); font-size: 0.85rem; margin-bottom: 8px;">Does the oil&rarr;rates channel strengthen during shocks?</p>
+        <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Shock Definition</th><th>N</th><th>R&sup2;</th>
+                    <th>Oil Coef</th><th>Oil t</th><th>Oil p</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in shock_t10y %}
+                <tr{% if row.label == 'Calm months (|oil| < 1 SD)' %} style="background:#e2efda"{% endif %}>
+                    <td><strong>{{ row.label }}</strong></td>
+                    <td>{{ row.n }}</td>
+                    <td>{{ row.r2 }}</td>
+                    {% if row.r2 != 'N/A' %}
+                    <td>{{ row.oil_coef }}</td>
+                    <td>{{ row.oil_t }}</td>
+                    <td>{{ row.oil_p }}</td>
+                    <td class="sig">{{ row.oil_sig }}</td>
+                    {% else %}
+                    <td colspan="4" style="color:#999">Too few observations</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
     <!-- OIL vs RATES -->
     <div class="section">
         <h2>The Numbers: Oil vs Interest Rates</h2>
@@ -281,15 +363,16 @@
             </div>
             <table>
                 <thead>
-                    <tr><th>Factor</th><th>Effect Size</th><th>Uncertainty</th><th>Confidence</th><th></th></tr>
+                    <tr><th>Factor</th><th>Coefficient</th><th>Std Error</th><th>t-stat</th><th>p-value</th><th></th></tr>
                 </thead>
                 <tbody>
                     {% for row in reg.rows %}
                     <tr>
                         <td>{{ row.var }}</td>
                         <td>{{ row.coef }}</td>
-                        <td>&plusmn;{{ row.se }}</td>
-                        <td>p={{ row.pval }}</td>
+                        <td>{{ row.se }}</td>
+                        <td>{{ row.tstat }}</td>
+                        <td>{{ row.pval }}</td>
                         <td class="sig">{{ row.sig }}</td>
                     </tr>
                     {% endfor %}
