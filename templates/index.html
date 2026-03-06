@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oil, REITs &amp; Interest Rates</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --blue: #2F5496;
+            --blue-light: #D6E4F0;
+            --red: #C00000;
+            --green: #27ae60;
+            --gold: #BF8F00;
+            --gray: #666;
+            --bg: #f8f9fa;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: #222;
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        header {
+            background: linear-gradient(135deg, var(--blue), #1a3a6e);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+        }
+        header h1 { font-size: 2rem; margin-bottom: 8px; }
+        header p { opacity: 0.85; font-size: 1.05rem; }
+        header .meta { margin-top: 12px; font-size: 0.9rem; opacity: 0.7; }
+
+        .download-btn {
+            display: inline-block;
+            background: var(--green);
+            color: white;
+            padding: 14px 32px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 20px 0 30px;
+            transition: background 0.2s;
+        }
+        .download-btn:hover { background: #219a52; }
+        .download-note { color: var(--gray); font-size: 0.85rem; margin-top: -20px; margin-bottom: 24px; }
+
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .section h2 {
+            color: var(--blue);
+            font-size: 1.4rem;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--blue-light);
+        }
+
+        .finding {
+            background: #fdf6e3;
+            border-left: 4px solid var(--gold);
+            padding: 16px 20px;
+            margin: 16px 0;
+            border-radius: 0 6px 6px 0;
+        }
+        .finding p { margin-bottom: 4px; }
+        .finding strong { color: var(--blue); }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 800px) { .chart-grid { grid-template-columns: 1fr; } }
+
+        .chart-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .chart-card h3 {
+            font-size: 1rem;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .chart-card .subtitle {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-bottom: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+        th {
+            background: var(--blue);
+            color: white;
+            padding: 8px 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td { padding: 6px 12px; border-bottom: 1px solid #e8e8e8; }
+        tr:hover td { background: #f0f4fa; }
+        .sig { color: var(--red); font-weight: 700; }
+
+        .stat-row { display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+        .stat-badge {
+            background: var(--blue-light);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        .stat-badge strong { color: var(--blue); }
+
+        .model-card {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .model-card h4 { color: var(--blue); margin-bottom: 8px; }
+
+        details { margin-bottom: 16px; }
+        details summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--blue);
+            padding: 8px 0;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--gray);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="container">
+        <h1>Oil, REITs &amp; Interest Rates</h1>
+        <p>Do oil price swings and interest rate moves affect how REITs perform relative to the S&amp;P 500?</p>
+        <div class="meta">{{ summary.n_obs }} monthly observations &middot; {{ summary.start }} &ndash; {{ summary.end }}</div>
+    </div>
+</header>
+
+<div class="container">
+
+    <a href="/download" class="download-btn">Download Excel Workbook</a>
+    <p class="download-note">Includes raw data, correlation formulas, LINEST regression formulas, and charts &mdash; all pulling from one data tab.</p>
+
+    <!-- KEY FINDINGS -->
+    <div class="section">
+        <h2>The Short Version</h2>
+        <div class="finding">
+            <p><strong>Oil prices don't really matter for REITs vs the S&amp;P.</strong> When oil spikes or crashes, REITs and the S&amp;P move about the same. There's no statistically meaningful connection.</p>
+        </div>
+        <div class="finding">
+            <p><strong>Long-term interest rates are what actually matters.</strong> When the 10-year Treasury rate rises by 1 percentage point in a month, REITs tend to trail the S&amp;P by about 5%. REITs act like bonds in this way.</p>
+        </div>
+        <div class="finding">
+            <p><strong>Oil does push rates around (a little).</strong> Big oil moves tend to nudge the 10-year rate in the same direction &mdash; likely through inflation expectations &mdash; but it's a noisy relationship.</p>
+        </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="section">
+        <h2>The Picture</h2>
+
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3>Oil Swings vs REIT Outperformance</h3>
+                <p class="subtitle">If oil mattered, you'd see a clear diagonal line. Instead: a blob.</p>
+                <canvas id="chart1"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Rate Rises vs REIT Outperformance</h3>
+                <p class="subtitle">Clear pattern: when 10Y rates rise, REITs underperform. The downward slope is significant.</p>
+                <canvas id="chart2"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Do Oil Moves Push Rates?</h3>
+                <p class="subtitle">There's a faint positive relationship: oil up = rates up. But lots of scatter.</p>
+                <canvas id="chart3"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>REIT vs S&amp;P: Who's Winning?</h3>
+                <p class="subtitle">12-month rolling average. Above zero = REITs winning. Below = S&amp;P winning.</p>
+                <canvas id="chart4"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3>Oil Price Over Time</h3>
+                <p class="subtitle">WTI crude, monthly average</p>
+                <canvas id="chart5"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Interest Rates Over Time</h3>
+                <p class="subtitle">3-month T-bill (short-term) vs 10-year Treasury (long-term)</p>
+                <canvas id="chart6"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- REIT REGRESSIONS -->
+    <div class="section">
+        <h2>The Numbers: REITs vs S&amp;P 500</h2>
+        <p style="color: var(--gray); margin-bottom: 16px;">
+            What drives months where REITs beat or trail the S&amp;P? We test oil changes and rate moves.
+            <br>Stars (***) mean the result is statistically reliable, not random noise.
+        </p>
+
+        {% for name, reg in reit_regs %}
+        <div class="model-card">
+            <h4>{{ name }}</h4>
+            <div class="stat-row">
+                <span class="stat-badge">Explains <strong>{{ (reg.r2|float * 100)|round(1) }}%</strong> of variation</span>
+                <span class="stat-badge">{{ reg.n }} months</span>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Factor</th><th>Effect Size</th><th>Uncertainty</th><th>Confidence</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for row in reg.rows %}
+                    <tr>
+                        <td>{{ row.var }}</td>
+                        <td>{{ row.coef }}</td>
+                        <td>&plusmn;{{ row.se }}</td>
+                        <td>p={{ row.pval }}</td>
+                        <td class="sig">{{ row.sig }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        <details>
+            <summary>How to read these tables</summary>
+            <ul style="padding: 12px 20px; color: #555;">
+                <li><strong>Effect Size (coefficient):</strong> How much the REIT-minus-S&amp;P return changes when this factor goes up by 1 unit. Negative = REITs do worse.</li>
+                <li><strong>Uncertainty (std error):</strong> How imprecise the estimate is. Smaller = more reliable.</li>
+                <li><strong>p-value:</strong> Probability this result is just random noise. Below 0.05 = statistically significant.</li>
+                <li><strong>Stars:</strong> *** = very significant (p&lt;0.01), ** = significant (p&lt;0.05), * = marginal (p&lt;0.1)</li>
+                <li><strong>"Explains X% of variation":</strong> What fraction of REIT vs S&amp;P monthly swings these factors account for. Higher = better model.</li>
+            </ul>
+        </details>
+    </div>
+
+    <!-- OIL vs RATES -->
+    <div class="section">
+        <h2>The Numbers: Oil vs Interest Rates</h2>
+        <p style="color: var(--gray); margin-bottom: 16px;">
+            Is there a link between oil prices and rates? We test both directions: rates predicting oil, and oil predicting rates.
+        </p>
+
+        {% for name, reg in oil_regs %}
+        <div class="model-card">
+            <h4>{{ name }}</h4>
+            <div class="stat-row">
+                <span class="stat-badge">Explains <strong>{{ (reg.r2|float * 100)|round(1) }}%</strong> of variation</span>
+                <span class="stat-badge">{{ reg.n }} months</span>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Factor</th><th>Effect Size</th><th>Uncertainty</th><th>Confidence</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for row in reg.rows %}
+                    <tr>
+                        <td>{{ row.var }}</td>
+                        <td>{{ row.coef }}</td>
+                        <td>&plusmn;{{ row.se }}</td>
+                        <td>p={{ row.pval }}</td>
+                        <td class="sig">{{ row.sig }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- DESCRIPTIVE STATS -->
+    <details class="section">
+        <summary style="font-size:1.2rem; color: var(--blue);">Descriptive Statistics</summary>
+        <table style="margin-top: 12px;">
+            <thead>
+                <tr>
+                    <th>Stat</th>
+                    <th>Oil Chg %</th>
+                    <th>REIT Ret %</th>
+                    <th>S&amp;P Ret %</th>
+                    <th>Excess Ret %</th>
+                    <th>3M Rate %</th>
+                    <th>10Y Rate %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in desc.index %}
+                <tr>
+                    <td><strong>{{ stat }}</strong></td>
+                    <td>{{ desc.loc[stat, 'oil_chg'] }}</td>
+                    <td>{{ desc.loc[stat, 'reit_ret'] }}</td>
+                    <td>{{ desc.loc[stat, 'spx_ret'] }}</td>
+                    <td>{{ desc.loc[stat, 'excess_ret'] }}</td>
+                    <td>{{ desc.loc[stat, 't3m'] }}</td>
+                    <td>{{ desc.loc[stat, 't10y'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </details>
+
+    <!-- METHODOLOGY -->
+    <details class="section">
+        <summary style="font-size:1.2rem; color: var(--blue);">Methodology</summary>
+        <ul style="padding: 12px 20px; color: #555;">
+            <li><strong>REIT Index:</strong> MSCI US REIT Index (^RMZ, 1995-2021) spliced with iShares US Real Estate ETF (IYR, 2000-present)</li>
+            <li><strong>Oil:</strong> WTI Crude spot (FRED: DCOILWTICO), monthly average, as % change</li>
+            <li><strong>Rates:</strong> 3-Month T-Bill (FRED: DTB3) and 10-Year Treasury (FRED: DGS10)</li>
+            <li><strong>Main model uses rate changes</strong> (month-over-month) rather than levels, which is more appropriate for return regressions</li>
+            <li><strong>Winsorized models</strong> trim the top/bottom 1% of returns to reduce outlier influence (COVID, GFC)</li>
+            <li><strong>Excel formulas:</strong> Correlation tab uses CORREL(), regression tab uses INDEX(LINEST()) &mdash; all reference the Data tab directly</li>
+        </ul>
+    </details>
+
+</div>
+
+<footer>
+    <p>Data: FRED (St. Louis Fed), Yahoo Finance &middot; *** p&lt;0.01 &nbsp; ** p&lt;0.05 &nbsp; * p&lt;0.1</p>
+</footer>
+
+<script>
+const D = {{ chart_data|safe }};
+
+const scatterOpts = {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+        x: { grid: { color: '#eee' } },
+        y: { grid: { color: '#eee' } }
+    }
+};
+
+// Chart 1: Oil vs REIT excess
+new Chart(document.getElementById('chart1'), {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            data: D.oil_chg.map((x, i) => ({ x, y: D.excess_ret[i] })),
+            backgroundColor: 'rgba(47, 84, 150, 0.3)',
+            pointRadius: 3,
+        }]
+    },
+    options: {
+        ...scatterOpts,
+        scales: {
+            x: { title: { display: true, text: 'Oil Price Move (%)' }, grid: { color: '#eee' } },
+            y: { title: { display: true, text: 'REIT vs S&P (%)' }, grid: { color: '#eee' } }
+        }
+    }
+});
+
+// Chart 2: 10Y change vs REIT excess
+new Chart(document.getElementById('chart2'), {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            data: D.d_t10y.map((x, i) => ({ x, y: D.excess_ret[i] })),
+            backgroundColor: 'rgba(192, 0, 0, 0.3)',
+            pointRadius: 3,
+        }]
+    },
+    options: {
+        ...scatterOpts,
+        scales: {
+            x: { title: { display: true, text: '10Y Rate Change (pp)' }, grid: { color: '#eee' } },
+            y: { title: { display: true, text: 'REIT vs S&P (%)' }, grid: { color: '#eee' } }
+        }
+    }
+});
+
+// Chart 3: Oil vs 10Y change
+new Chart(document.getElementById('chart3'), {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            data: D.oil_chg.map((x, i) => ({ x, y: D.d_t10y[i] })),
+            backgroundColor: 'rgba(191, 143, 0, 0.3)',
+            pointRadius: 3,
+        }]
+    },
+    options: {
+        ...scatterOpts,
+        scales: {
+            x: { title: { display: true, text: 'Oil Price Move (%)' }, grid: { color: '#eee' } },
+            y: { title: { display: true, text: '10Y Rate Change (pp)' }, grid: { color: '#eee' } }
+        }
+    }
+});
+
+// Chart 4: Rolling excess return
+const labels4 = D.dates;
+new Chart(document.getElementById('chart4'), {
+    type: 'line',
+    data: {
+        labels: labels4,
+        datasets: [{
+            data: D.rolling_excess,
+            borderColor: 'rgba(47, 84, 150, 0.8)',
+            backgroundColor: 'rgba(47, 84, 150, 0.15)',
+            fill: 'origin',
+            pointRadius: 0,
+            borderWidth: 2,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: {
+                ticks: { maxTicksLimit: 10, maxRotation: 0 },
+                grid: { color: '#eee' }
+            },
+            y: {
+                title: { display: true, text: 'Avg Monthly Excess (%)' },
+                grid: { color: '#eee' }
+            }
+        }
+    }
+});
+
+// Chart 5: Oil price over time
+new Chart(document.getElementById('chart5'), {
+    type: 'line',
+    data: {
+        labels: D.dates,
+        datasets: [{
+            data: D.oil_price,
+            borderColor: '#222',
+            pointRadius: 0,
+            borderWidth: 1.5,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { maxTicksLimit: 10, maxRotation: 0 }, grid: { color: '#eee' } },
+            y: { title: { display: true, text: '$/barrel' }, grid: { color: '#eee' } }
+        }
+    }
+});
+
+// Chart 6: Rates over time
+new Chart(document.getElementById('chart6'), {
+    type: 'line',
+    data: {
+        labels: D.dates,
+        datasets: [
+            {
+                label: '10Y Treasury',
+                data: D.t10y,
+                borderColor: 'rgba(192, 0, 0, 0.8)',
+                pointRadius: 0,
+                borderWidth: 1.5,
+            },
+            {
+                label: '3M T-Bill',
+                data: D.t3m,
+                borderColor: 'rgba(47, 84, 150, 0.8)',
+                pointRadius: 0,
+                borderWidth: 1.5,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+            x: { ticks: { maxTicksLimit: 10, maxRotation: 0 }, grid: { color: '#eee' } },
+            y: { title: { display: true, text: 'Rate (%)' }, grid: { color: '#eee' } }
+        }
+    }
+});
+</script>
+
+</body>
+</html>
