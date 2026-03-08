@@ -805,6 +805,55 @@ def build_excel(data, regressions):
     wsfn.row_dimensions[r].height = 48
     r += 2
 
+    # --- Exhibit charts embedded in Flash Note ---
+    wsfn.cell(row=r, column=2, value='Exhibit 2: Oil Has No Direct Effect on REIT Relative Performance').font = SUBSECTION_FONT
+    r += 1
+    # Chart: Oil Change vs REIT Excess Return
+    cfn1 = ScatterChart()
+    cfn1.title = 'Oil Price Change vs REIT Excess Return'
+    cfn1.x_axis.title = 'Monthly Oil Change (%)'
+    cfn1.y_axis.title = 'REIT vs S&P (%)'
+    cfn1.width = 18
+    cfn1.height = 12
+    cfn1.legend = None
+    sfn1 = Series(Reference(ws, min_col=6, min_row=2, max_row=last_row),
+                  Reference(ws, min_col=3, min_row=2, max_row=last_row), title='Monthly')
+    sfn1.graphicalProperties.noFill = True
+    cfn1.series.append(sfn1)
+    wsfn.add_chart(cfn1, f'B{r}')
+    r += 16
+
+    wsfn.cell(row=r, column=2, value='Exhibit 3: The Indirect Channel').font = SUBSECTION_FONT
+    r += 1
+    # Chart: Oil Change vs 10Y Rate Change
+    cfn2 = ScatterChart()
+    cfn2.title = 'Oil Change vs 10Y Rate Change'
+    cfn2.x_axis.title = 'Monthly Oil Change (%)'
+    cfn2.y_axis.title = '10Y Rate Change (pp)'
+    cfn2.width = 18
+    cfn2.height = 12
+    cfn2.legend = None
+    sfn2 = Series(Reference(ws, min_col=11, min_row=2, max_row=last_row),
+                  Reference(ws, min_col=3, min_row=2, max_row=last_row), title='Monthly')
+    sfn2.graphicalProperties.noFill = True
+    cfn2.series.append(sfn2)
+    wsfn.add_chart(cfn2, f'B{r}')
+
+    # Chart: 10Y Rate Change vs REIT Excess Return
+    cfn3 = ScatterChart()
+    cfn3.title = '10Y Rate Change vs REIT Excess Return'
+    cfn3.x_axis.title = '10Y Rate Change (pp)'
+    cfn3.y_axis.title = 'REIT vs S&P (%)'
+    cfn3.width = 18
+    cfn3.height = 12
+    cfn3.legend = None
+    sfn3 = Series(Reference(ws, min_col=6, min_row=2, max_row=last_row),
+                  Reference(ws, min_col=11, min_row=2, max_row=last_row), title='Monthly')
+    sfn3.graphicalProperties.noFill = True
+    cfn3.series.append(sfn3)
+    wsfn.add_chart(cfn3, f'E{r}')
+    r += 16
+
     asym_text = ("Important asymmetry: oil crashes (<-10%) produce a significantly different dynamic than oil spikes. "
                  "Crashes pull rates down, and the rate->REIT channel becomes highly significant (p=0.005, coef=-10.6). "
                  "This is the tail-risk bull case: if oil surges to $100+ and recession fears take hold, the 10Y "
