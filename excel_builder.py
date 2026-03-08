@@ -584,7 +584,80 @@ def build_excel(data, regressions):
         r += 1
 
     # ==================================================================
-    # TAB 7: CHARTS
+    # TAB 7: SOURCES
+    # ==================================================================
+    wss = wb.create_sheet('Sources')
+    wss.sheet_properties.tabColor = '333333'
+    wss.column_dimensions['A'].width = 4
+    wss.column_dimensions['B'].width = 30
+    wss.column_dimensions['C'].width = 65
+    wss.column_dimensions['D'].width = 55
+
+    r = 1
+    wss.cell(row=r, column=2, value='Data Sources').font = Font(bold=True, size=16, color='2F5496')
+    r += 2
+    _header_row(wss, r, ['', 'Source', 'URL', 'Used For'])
+    r += 1
+
+    sources = [
+        ('FRED: DCOILWTICO',
+         'https://fred.stlouisfed.org/series/DCOILWTICO',
+         'WTI Crude Oil spot price (daily). Resampled to monthly average, then converted to % change for the oil shock variable.'),
+        ('FRED: DTB3',
+         'https://fred.stlouisfed.org/series/DTB3',
+         '3-Month Treasury Bill rate (daily). Resampled to monthly average. Used as the short-term interest rate variable (level and month-over-month change).'),
+        ('FRED: DGS10',
+         'https://fred.stlouisfed.org/series/DGS10',
+         '10-Year Treasury Constant Maturity rate (daily). Resampled to monthly average. Used as the long-term interest rate variable (level and month-over-month change).'),
+        ('Yahoo Finance: ^RMZ',
+         'https://finance.yahoo.com/quote/%5ERMZ/',
+         'MSCI US REIT Index (daily close, Jun 1995 - Sep 2021). Used as the REIT benchmark for the earlier portion of the sample period.'),
+        ('Yahoo Finance: IYR',
+         'https://finance.yahoo.com/quote/IYR/',
+         'iShares U.S. Real Estate ETF (daily close, Jun 2000 - present). Spliced with ^RMZ to create a continuous REIT return series through 2025.'),
+        ('Yahoo Finance: ^GSPC',
+         'https://finance.yahoo.com/quote/%5EGSPC/',
+         'S&P 500 Index (daily close). Resampled to month-end values, then converted to monthly % return. Used as the broad equity benchmark.'),
+    ]
+
+    for source, url, desc in sources:
+        wss.cell(row=r, column=2, value=source).font = BOLD
+        wss.cell(row=r, column=3, value=url).font = Font(color='0563C1', underline='single')
+        wss.hyperlink = url
+        wss.cell(row=r, column=4, value=desc).alignment = Alignment(wrap_text=True)
+        wss.row_dimensions[r].height = max(32, len(desc) // 55 * 16 + 16)
+        for c in range(2, 5):
+            wss.cell(row=r, column=c).border = THIN_BORDER
+        r += 1
+
+    r += 2
+    wss.cell(row=r, column=2, value='Methodology Notes').font = Font(bold=True, size=13, color='2F5496')
+    r += 1
+    notes = [
+        ('REIT Index Splice',
+         '^RMZ covers Jun 1995 - Sep 2021. IYR covers Jun 2000 - present. We use ^RMZ for months before IYR began, then IYR from Jun 2000 onward, creating a continuous series from 1995 to 2025.'),
+        ('Monthly Returns',
+         'All return series use month-end closing prices. Monthly return = (close_t / close_{t-1} - 1) * 100.'),
+        ('Excess Return',
+         'REIT excess return = REIT monthly return - S&P 500 monthly return. Positive = REITs outperformed.'),
+        ('Rate Changes',
+         'Month-over-month change in the monthly average rate level (in percentage points). Used in regressions instead of rate levels to avoid spurious correlation.'),
+        ('Robust Standard Errors',
+         'Website regressions use HC1 (heteroscedasticity-consistent) standard errors. Excel LINEST formulas use classical OLS standard errors (cross-check column).'),
+        ('Winsorization',
+         'Some models trim excess returns and oil changes at the 1st/99th percentile to reduce the influence of extreme outliers (e.g., COVID March 2020, GFC).'),
+    ]
+    for title, desc in notes:
+        wss.cell(row=r, column=2, value=title).font = BOLD
+        wss.cell(row=r, column=3, value=desc).alignment = Alignment(wrap_text=True)
+        wss.merge_cells(start_row=r, start_column=3, end_row=r, end_column=4)
+        wss.row_dimensions[r].height = max(32, len(desc) // 90 * 16 + 16)
+        for c in range(2, 5):
+            wss.cell(row=r, column=c).border = THIN_BORDER
+        r += 1
+
+    # ==================================================================
+    # TAB 8: CHARTS
     # ==================================================================
     ws6 = wb.create_sheet('Charts')
     ws6.sheet_properties.tabColor = '7030A0'
