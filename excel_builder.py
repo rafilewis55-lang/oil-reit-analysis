@@ -657,7 +657,318 @@ def build_excel(data, regressions):
         r += 1
 
     # ==================================================================
-    # TAB 8: CHARTS
+    # TAB 8: FLASH NOTE (Iran War & REITs)
+    # ==================================================================
+    wsfn = wb.create_sheet('Flash Note')
+    wsfn.sheet_properties.tabColor = '7F2B0A'
+    wsfn.column_dimensions['A'].width = 4
+    wsfn.column_dimensions['B'].width = 22
+    wsfn.column_dimensions['C'].width = 22
+    wsfn.column_dimensions['D'].width = 22
+    wsfn.column_dimensions['E'].width = 22
+    wsfn.column_dimensions['F'].width = 22
+
+    DARK_FILL = PatternFill('solid', fgColor='2F5496')
+    MAROON_FILL = PatternFill('solid', fgColor='7F2B0A')
+    WHITE_BOLD = Font(bold=True, color='FFFFFF', size=11)
+    SECTION_FONT = Font(bold=True, size=13, color='2F5496')
+    SUBSECTION_FONT = Font(bold=True, size=11, color='7F2B0A')
+
+    r = 1
+    # Title block
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value='EQUITY RESEARCH  |  REAL ESTATE  |  REIT Sector Flash Note').font = Font(bold=True, size=9, color='888888')
+    r += 1
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value='Iran War & REITs: The Rate Channel Is What Matters').font = Font(bold=True, size=16, color='2F5496')
+    r += 1
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value='Oil is the headline. Rates are the mechanism. Subsector dispersion is the opportunity.').font = Font(italic=True, size=11, color='555555')
+    r += 1
+    wsfn.cell(row=r, column=6, value='March 7, 2026').font = Font(italic=True, color='888888')
+    r += 2
+
+    # Key Takeaways box
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    c = wsfn.cell(row=r, column=2, value='KEY TAKEAWAYS')
+    c.font = WHITE_BOLD
+    c.fill = DARK_FILL
+    for col in range(2, 7):
+        wsfn.cell(row=r, column=col).fill = DARK_FILL
+    r += 1
+
+    takeaways = [
+        "Oil is not the direct lever for REITs. Across 30 years of monthly data (n=366), the direct oil->REIT excess return coefficient is statistically insignificant across every shock definition.",
+        "Rates are. A 1pp rise in the 10Y is associated with ~3-5% REIT underperformance vs the S&P. This week's move from ~3.90% to ~4.13% is the real headwind.",
+        "The transmission chain is active: Oil shock -> inflation expectations -> 10Y rises -> REITs underperform. The R-sq on oil->10Y strengthens from 8% in the full sample to 32% during extreme shock months.",
+        "Subsector dispersion is the key opportunity. Industrial, Data Centers, and Healthcare are best insulated. Net Lease and Residential face duration headwinds. Hotels are a near-term avoid.",
+        "The tail risk is asymmetric: if oil reaches $100+ and recession fears mount, the 10Y retreats and rate-sensitive REIT sectors could actually benefit from the resulting rate-cut repricing.",
+    ]
+    for tk in takeaways:
+        wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+        wsfn.cell(row=r, column=2, value=tk).alignment = Alignment(wrap_text=True)
+        wsfn.row_dimensions[r].height = max(32, len(tk) // 80 * 16 + 20)
+        for col in range(2, 7):
+            wsfn.cell(row=r, column=col).fill = LIGHT_FILL
+            wsfn.cell(row=r, column=col).border = THIN_BORDER
+        r += 1
+    r += 1
+
+    # Macro Backdrop
+    wsfn.cell(row=r, column=2, value='MACRO BACKDROP').font = SECTION_FONT
+    r += 1
+    macro_text = ("The US-Israel war with Iran (Operation Epic Fury, begun February 28) has effectively closed the "
+                  "Strait of Hormuz to commercial traffic via drone attacks on tankers -- achieving a de facto blockade "
+                  "without a formal naval operation. The conflict is now in day 8 with no near-term resolution visible; "
+                  "Trump has demanded unconditional surrender.")
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value=macro_text).alignment = Alignment(wrap_text=True)
+    wsfn.row_dimensions[r].height = 64
+    r += 2
+
+    # Key market variables
+    macro_vars = [
+        ('OIL', 'Brent ~$82/bbl (+12% since Feb 28). WTI ~$75. Goldman base: $76 avg Q2. $100+ scenario if Hormuz stays closed 5+ weeks.'),
+        ('10Y', 'Rose from ~3.90% pre-war to ~4.13% intraweek peak; currently ~4.06-4.10%. Bond market pricing inflation risk, not safety. Defying the typical geopolitical safe-haven bid.'),
+        ('FED', 'Rate cuts pushed out. Prior consensus: cuts resume H2 2026. Now: cuts likely delayed to Q4 2026 at earliest under base case; potentially 2027 in bear case.'),
+    ]
+    for label, desc in macro_vars:
+        wsfn.cell(row=r, column=2, value=label).font = Font(bold=True, size=11, color='2F5496')
+        wsfn.cell(row=r, column=2).fill = LIGHT_FILL
+        wsfn.merge_cells(start_row=r, start_column=3, end_row=r, end_column=6)
+        wsfn.cell(row=r, column=3, value=desc).alignment = Alignment(wrap_text=True)
+        wsfn.row_dimensions[r].height = 48
+        for col in range(2, 7):
+            wsfn.cell(row=r, column=col).border = THIN_BORDER
+        r += 1
+    r += 1
+
+    # Historical Framework
+    wsfn.cell(row=r, column=2, value='HISTORICAL FRAMEWORK: WHAT 30 YEARS OF OIL SHOCKS TELL US').font = SECTION_FONT
+    r += 1
+
+    wsfn.cell(row=r, column=2, value='The Core Finding: Oil != REIT Underperformance').font = SUBSECTION_FONT
+    r += 1
+    core_text = ("Our regression analysis covers monthly data from 1995-2025 across every major shock definition. "
+                 "The bottom line is unambiguous: oil does not drive REIT underperformance vs the S&P, even during "
+                 "major shocks. Oil spikes hit REITs and the broader market approximately equally. There is no "
+                 "meaningful differential impact from the energy channel alone.")
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value=core_text).alignment = Alignment(wrap_text=True)
+    wsfn.row_dimensions[r].height = 64
+    r += 2
+
+    # Exhibit 1: Oil coefficient table
+    wsfn.cell(row=r, column=2, value='Exhibit 1: Oil Coefficient on REIT Excess Return').font = SUBSECTION_FONT
+    r += 1
+    ex1_headers = ['Regime', 'Oil Coef.', 'p-value', 'Verdict']
+    for ci, h in enumerate(ex1_headers, 2):
+        c = wsfn.cell(row=r, column=ci, value=h)
+        c.font = WHITE_BOLD
+        c.fill = DARK_FILL
+        c.alignment = Alignment(horizontal='center')
+    r += 1
+    ex1_data = [
+        ('Full Sample (n=366)', '-0.022', '0.567', 'Not significant'),
+        ('Oil Shocks >1 SD (n=88)', '-0.051', '0.547', 'Not significant'),
+        ('Extreme Shocks >1.5 SD (n=29)', '+0.031', '0.429', 'Not significant'),
+        ('Oil Spikes >+10% (n=46)', '+0.048', '0.582', 'Not significant'),
+        ('Oil Crashes <-10% (n=35)', '+0.178', '0.155', 'Not significant'),
+    ]
+    for regime, coef, pval, verdict in ex1_data:
+        wsfn.cell(row=r, column=2, value=regime)
+        wsfn.cell(row=r, column=3, value=coef).alignment = Alignment(horizontal='center')
+        wsfn.cell(row=r, column=4, value=pval).alignment = Alignment(horizontal='center')
+        wsfn.cell(row=r, column=5, value=verdict).font = Font(color='548235')
+        for col in range(2, 6):
+            wsfn.cell(row=r, column=col).border = THIN_BORDER
+        r += 1
+    r += 1
+
+    # Rate mechanism
+    wsfn.cell(row=r, column=2, value='The Real Mechanism: Rates Drive the Wedge').font = SUBSECTION_FONT
+    r += 1
+    rate_text = ("A 1 percentage point rise in the 10-year Treasury yield in a given month is associated with "
+                 "approximately 3-5% REIT underperformance vs the S&P. At the extreme shock threshold (1.5 SD oil "
+                 "moves), this coefficient is -14.6 and highly significant (p<0.001). REITs behave like long-duration "
+                 "bonds -- the interest rate channel is the dominant factor in relative performance.")
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value=rate_text).alignment = Alignment(wrap_text=True)
+    wsfn.row_dimensions[r].height = 64
+    r += 2
+
+    oil_10y_text = ("The oil->10Y relationship also strengthens significantly during large shocks: R-sq rises from "
+                    "8.3% in the full sample to 32.1% during extreme shock months, meaning the current environment "
+                    "-- a genuine large oil shock -- is precisely when this channel is most active.")
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value=oil_10y_text).alignment = Alignment(wrap_text=True)
+    wsfn.row_dimensions[r].height = 48
+    r += 2
+
+    asym_text = ("Important asymmetry: oil crashes (<-10%) produce a significantly different dynamic than oil spikes. "
+                 "Crashes pull rates down, and the rate->REIT channel becomes highly significant (p=0.005, coef=-10.6). "
+                 "This is the tail-risk bull case: if oil surges to $100+ and recession fears take hold, the 10Y "
+                 "retreats sharply and rate-sensitive REIT sectors benefit meaningfully.")
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value=asym_text).alignment = Alignment(wrap_text=True)
+    wsfn.row_dimensions[r].height = 64
+    r += 2
+
+    # Subsector Impact Analysis
+    wsfn.cell(row=r, column=2, value='SUBSECTOR IMPACT ANALYSIS').font = SECTION_FONT
+    r += 1
+    sub_headers = ['Subsector', 'Rate Sensitivity', 'Oil/Inflation', 'Demand Impact', 'Our View']
+    for ci, h in enumerate(sub_headers, 2):
+        c = wsfn.cell(row=r, column=ci, value=h)
+        c.font = WHITE_BOLD
+        c.fill = DARK_FILL
+        c.alignment = Alignment(horizontal='center')
+    r += 1
+
+    subsectors = [
+        ('Industrial', 'Moderate', 'Supply chain boost', 'Reshoring accelerates', 'CONSTRUCTIVE'),
+        ('Data Centers', 'Moderate', 'Energy cost (hedged)', 'AI demand durable', 'CONSTRUCTIVE'),
+        ('Healthcare', 'Low', 'Minimal', 'Defensive / resilient', 'POSITIVE'),
+        ('Self-Storage', 'Low-Mod', 'Insulated', 'Counter-cyclical', 'CONSTRUCTIVE'),
+        ('Strip/Mall Retail', 'Moderate', 'Consumer drag', 'Gas price pressure', 'NEUTRAL'),
+        ('Net Lease', 'HIGH', 'Moderate passthrough', 'Contractual / stable', 'CAUTIOUS'),
+        ('Residential', 'HIGH', 'Utility cost rise', 'Near-term demand OK', 'CAUTIOUS'),
+        ('Office', 'Moderate', 'Energy cost rise', 'Already challenged', 'AVOID'),
+        ('Hotels', 'Low-Mod', 'Direct inflation hit', 'Travel disruption', 'AVOID'),
+    ]
+
+    view_colors = {
+        'CONSTRUCTIVE': '548235', 'POSITIVE': '548235',
+        'NEUTRAL': 'BF8F00',
+        'CAUTIOUS': 'C00000', 'AVOID': 'C00000',
+    }
+    for name, rate_sens, oil_inf, demand, view in subsectors:
+        wsfn.cell(row=r, column=2, value=name).font = BOLD
+        wsfn.cell(row=r, column=3, value=rate_sens).alignment = Alignment(horizontal='center')
+        wsfn.cell(row=r, column=4, value=oil_inf).alignment = Alignment(horizontal='center')
+        wsfn.cell(row=r, column=5, value=demand).alignment = Alignment(horizontal='center')
+        vc = wsfn.cell(row=r, column=6, value=view)
+        vc.font = Font(bold=True, color=view_colors.get(view, '000000'))
+        vc.alignment = Alignment(horizontal='center')
+        for col in range(2, 7):
+            wsfn.cell(row=r, column=col).border = THIN_BORDER
+        # Alternate row shading
+        if subsectors.index((name, rate_sens, oil_inf, demand, view)) % 2 == 0:
+            for col in range(2, 7):
+                wsfn.cell(row=r, column=col).fill = PatternFill('solid', fgColor='F2F2F2')
+        r += 1
+    r += 1
+
+    # Subsector commentary
+    sub_commentary = [
+        ('Industrial -- Best Positioned',
+         'The war is accelerating supply chain regionalization already underway. Manufacturers are likely to fast-track '
+         'plans to shift Asia-Pacific-dependent supply chains, driving incremental demand for US warehouse and distribution '
+         'space. Industrial REITs with port-adjacent and Sunbelt logistics exposure are the clearest beneficiary.'),
+        ('Data Centers -- Constructive With Energy Watch',
+         'AI data center demand is durable and decoupled from geopolitical risk. The key watch item is natural gas prices: '
+         'most data center leases pass through power costs to tenants, providing a structural hedge. The secular AI capex '
+         'cycle supersedes near-term energy cost noise.'),
+        ('Net Lease -- Duration Risk',
+         'The most bond-like part of the REIT universe. Long-duration, fixed-escalator leases mean cap rate expansion from '
+         'rising rates flows directly into relative underperformance. The sector was already trading at tight spreads to '
+         'Treasuries pre-war; that cushion compresses further with the 10Y at 4.1%+.'),
+        ('Hotels -- Near-Term Avoid',
+         'Direct cost inflation (energy, transport) combines with acute demand disruption. Global travel has been significantly '
+         'impacted; business travel to the Middle East and gateway markets is functionally halted. RevPAR pressure in Q1/Q2 2026 '
+         'is likely material.'),
+    ]
+    for title, text in sub_commentary:
+        wsfn.cell(row=r, column=2, value=title).font = SUBSECTION_FONT
+        r += 1
+        wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+        wsfn.cell(row=r, column=2, value=text).alignment = Alignment(wrap_text=True)
+        wsfn.row_dimensions[r].height = 48
+        r += 2
+
+    # Scenario Analysis
+    wsfn.cell(row=r, column=2, value='SCENARIO ANALYSIS').font = SECTION_FONT
+    r += 1
+    scen_headers = ['', 'Base Case (45%)\n~4-6 Week Conflict', 'Bear Case (35%)\nExtended Hormuz Closure', 'Bull Case (20%)\nRapid Ceasefire']
+    for ci, h in enumerate(scen_headers, 2):
+        c = wsfn.cell(row=r, column=ci, value=h)
+        c.font = WHITE_BOLD
+        c.fill = DARK_FILL
+        c.alignment = Alignment(horizontal='center', wrap_text=True)
+    wsfn.row_dimensions[r].height = 36
+    r += 1
+
+    scenarios = [
+        ('Brent Oil', '$80-90/bbl', '$100+/bbl', '~$65-70/bbl'),
+        ('10Y Yield', '4.00-4.25%', '4.25-4.75%; then retreats', '3.70-3.90%'),
+        ('Fed', 'Cuts delayed to Q4 2026', 'Stagflation risk; cuts on hold', 'Cuts resume H2 2026'),
+        ('REIT vs S&P', 'Slight underperform', 'Underperform; then outperform', 'Outperform (+3-5%)'),
+        ('Best Subsectors', 'Industrial, Data Ctr, HC', 'Healthcare, Self-Storage', 'Net Lease, Residential'),
+        ('Worst Subsectors', 'Net Lease, Hotels', 'Hotels, Office, Retail', 'Hotels (structural)'),
+    ]
+    for label, base, bear, bull in scenarios:
+        wsfn.cell(row=r, column=2, value=label).font = BOLD
+        wsfn.cell(row=r, column=3, value=base).alignment = Alignment(horizontal='center', wrap_text=True)
+        wsfn.cell(row=r, column=4, value=bear).alignment = Alignment(horizontal='center', wrap_text=True)
+        wsfn.cell(row=r, column=5, value=bull).alignment = Alignment(horizontal='center', wrap_text=True)
+        for col in range(2, 6):
+            wsfn.cell(row=r, column=col).border = THIN_BORDER
+        r += 1
+    r += 1
+
+    # Tail Risk box
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    c = wsfn.cell(row=r, column=2, value='TAIL RISK TO MONITOR')
+    c.font = Font(bold=True, color='FFFFFF')
+    for col in range(2, 7):
+        wsfn.cell(row=r, column=col).fill = PatternFill('solid', fgColor='C00000')
+    r += 1
+    tail_text = ("If oil reaches $100+ and recession fears take hold, the dynamic flips. The historical data shows that "
+                 "oil crashes -- the demand-destruction phase of an energy shock -- pull the 10Y down sharply. In that "
+                 "scenario, the sectors currently under pressure from duration risk (net lease, residential) become the "
+                 "beneficiaries. Investors should monitor the oil price level and Fed communication carefully for the "
+                 "inflection signal.")
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value=tail_text).alignment = Alignment(wrap_text=True)
+    wsfn.row_dimensions[r].height = 64
+    for col in range(2, 7):
+        wsfn.cell(row=r, column=col).fill = PatternFill('solid', fgColor='FCE4EC')
+        wsfn.cell(row=r, column=col).border = THIN_BORDER
+    r += 2
+
+    # Bottom Line
+    wsfn.cell(row=r, column=2, value='BOTTOM LINE').font = SECTION_FONT
+    r += 1
+    bl1 = ("The Iran war is a REIT headwind, but the mechanism is rates, not oil. The 10Y's unusual upward move "
+           "-- defying the traditional geopolitical safe-haven bid -- is the variable to watch. At ~4.1%, the 10Y "
+           "represents a meaningful but not catastrophic headwind for the sector in aggregate.")
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value=bl1).alignment = Alignment(wrap_text=True)
+    wsfn.row_dimensions[r].height = 48
+    r += 2
+
+    bl2 = ("Subsector preference order: (1) Industrial and Data Centers as secular stories with the best insulation; "
+           "(2) Healthcare for defensiveness; (3) Self-Storage as counter-cyclical; (4) Net Lease and Residential on "
+           "caution given duration exposure; (5) Hotels and Office as avoids. The conflict is likely to resolve within "
+           "4-8 weeks on current military trajectory, at which point rate-cut expectations should resume and a more "
+           "constructive REIT backdrop re-emerges.")
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value=bl2).alignment = Alignment(wrap_text=True)
+    wsfn.row_dimensions[r].height = 64
+    r += 2
+
+    # Disclaimer
+    disc = ("This report is prepared for informational purposes only and does not constitute investment advice or a "
+            "recommendation to buy or sell any security. Historical data sourced from FRED (DCOILWTICO, DTB3, DGS10) "
+            "and FTSE NAREIT. Regression analysis based on monthly data 1995-2025 (n=366 observations). All market "
+            "data as of March 6-7, 2026. For institutional investors only.")
+    wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
+    wsfn.cell(row=r, column=2, value=disc).font = Font(italic=True, size=8, color='999999')
+    wsfn.cell(row=r, column=2).alignment = Alignment(wrap_text=True)
+    wsfn.row_dimensions[r].height = 48
+
+    # ==================================================================
+    # TAB 9: CHARTS
     # ==================================================================
     ws6 = wb.create_sheet('Charts')
     ws6.sheet_properties.tabColor = '7030A0'
