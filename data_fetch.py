@@ -242,6 +242,60 @@ def run_regressions(data):
     results['_shock_counts'] = {label: int(mask.sum()) for label, mask in shock_defs.items()}
     results['_shock_counts']['Calm months (|oil| < 1 SD)'] = int(calm_mask.sum())
 
+    # --- Post-shock analysis: 3, 6, 12 month performance after each historical shock ---
+    post_shock = []
+    for label, (start, end) in historical_shocks.items():
+        # Find first month AFTER the shock end date
+        post_start_idx = df.index.searchsorted(pd.Timestamp(end)) + 1
+        if post_start_idx >= len(df):
+            continue
+
+        for horizon, months in [('3M', 3), ('6M', 6), ('12M', 12)]:
+            post_end_idx = min(post_start_idx + months, len(df))
+            window = df.iloc[post_start_idx:post_end_idx]
+            if len(window) == 0:
+                continue
+
+            # Cumulative returns: compound monthly returns
+            reit_cum = ((1 + window['reit_ret'] / 100).prod() - 1) * 100
+            spx_cum = ((1 + window['spx_ret'] / 100).prod() - 1) * 100
+            excess_cum = reit_cum - spx_cum
+            oil_cum = ((1 + window['oil_chg'] / 100).prod() - 1) * 100
+            # Rate change: simple sum of monthly changes (in pp)
+            d_t10y_cum = window['d_t10y'].sum()
+            d_t3m_cum = window['d_t3m'].sum()
+
+            post_shock.append({
+                'shock': label,
+                'shock_end': end,
+                'horizon': horizon,
+                'months_actual': len(window),
+                'reit_ret': round(float(reit_cum), 2),
+                'spx_ret': round(float(spx_cum), 2),
+                'excess_ret': round(float(excess_cum), 2),
+                'oil_chg': round(float(oil_cum), 2),
+                'd_t10y': round(float(d_t10y_cum), 3),
+                'd_t3m': round(float(d_t3m_cum), 3),
+            })
+
+    # Averages across all shocks by horizon
+    post_shock_avg = {}
+    for horizon in ['3M', '6M', '12M']:
+        rows = [r for r in post_shock if r['horizon'] == horizon]
+        if rows:
+            post_shock_avg[horizon] = {
+                'n': len(rows),
+                'reit_ret': round(np.mean([r['reit_ret'] for r in rows]), 2),
+                'spx_ret': round(np.mean([r['spx_ret'] for r in rows]), 2),
+                'excess_ret': round(np.mean([r['excess_ret'] for r in rows]), 2),
+                'oil_chg': round(np.mean([r['oil_chg'] for r in rows]), 2),
+                'd_t10y': round(np.mean([r['d_t10y'] for r in rows]), 3),
+                'd_t3m': round(np.mean([r['d_t3m'] for r in rows]), 3),
+            }
+
+    results['_post_shock'] = post_shock
+    results['_post_shock_avg'] = post_shock_avg
+
     return results
 
 

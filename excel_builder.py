@@ -218,7 +218,8 @@ def build_excel(data, regressions):
     ws2.cell(row=r, column=1, value='Historical Shock Windows').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
     _header_row(ws2, r, ['Period', 'Start', 'End', 'Months', 'Avg Oil Chg %',
-                          'Avg REIT Excess %', 'Avg 10Y Chg (pp)'])
+                          'Avg REIT Excess %', 'Avg 10Y Chg (pp)',
+                          'Cumulative Oil %', 'Cumulative REIT %', 'Cumulative S&P %', 'Cumulative Excess %', 'Cumulative 10Y (pp)'])
     r += 1
     for label, (start, end) in historical_shocks.items():
         mask = (df.index >= start) & (df.index <= end)
@@ -232,7 +233,23 @@ def build_excel(data, regressions):
         ws2.cell(row=r, column=5, value=round(float(sub['oil_chg'].mean()), 1))
         ws2.cell(row=r, column=6, value=round(float(sub['excess_ret'].mean()), 2))
         ws2.cell(row=r, column=7, value=round(float(sub['d_t10y'].mean()), 3))
-        for c in range(1, 8):
+        # Cumulative columns
+        cum_oil = ((1 + sub['oil_chg'] / 100).prod() - 1) * 100
+        cum_reit = ((1 + sub['reit_ret'] / 100).prod() - 1) * 100
+        cum_spx = ((1 + sub['spx_ret'] / 100).prod() - 1) * 100
+        cum_excess = cum_reit - cum_spx
+        cum_10y = sub['d_t10y'].sum()
+        ws2.cell(row=r, column=8, value=round(float(cum_oil), 1)).number_format = '0.0'
+        ws2.cell(row=r, column=9, value=round(float(cum_reit), 1)).number_format = '0.0'
+        ws2.cell(row=r, column=10, value=round(float(cum_spx), 1)).number_format = '0.0'
+        c_ex = ws2.cell(row=r, column=11, value=round(float(cum_excess), 1))
+        c_ex.number_format = '0.0'
+        if cum_excess > 0:
+            c_ex.font = Font(bold=True, color='336633')
+        elif cum_excess < 0:
+            c_ex.font = Font(bold=True, color='CC0000')
+        ws2.cell(row=r, column=12, value=round(float(cum_10y), 3)).number_format = '0.000'
+        for c in range(1, 13):
             ws2.cell(row=r, column=c).border = THIN_BORDER
         r += 1
 
@@ -1139,7 +1156,106 @@ def build_excel(data, regressions):
         r += 1
 
     # ==================================================================
-    # TAB 10: CHARTS
+    # TAB 10: POST-SHOCK RECOVERY
+    # ==================================================================
+    post_shock = regressions.get('_post_shock', [])
+    post_shock_avg = regressions.get('_post_shock_avg', {})
+
+    wsp = wb.create_sheet('Post-Shock Recovery')
+    wsp.column_dimensions['A'].width = 40
+    wsp.column_dimensions['B'].width = 12
+    wsp.column_dimensions['C'].width = 10
+    for col_letter in ['D', 'E', 'F', 'G', 'H', 'I']:
+        wsp.column_dimensions[col_letter].width = 14
+
+    r = 1
+    wsp.cell(row=r, column=1, value='Post-Shock Recovery: 3, 6, and 12 Months After Each Shock').font = Font(bold=True, size=14, color=DB_BLUE)
+    r += 1
+    wsp.cell(row=r, column=1, value='How did REITs, the S&P, and rates behave after each historical oil shock ended?').font = ITALIC_GRAY
+    r += 2
+
+    # Summary averages first
+    wsp.cell(row=r, column=1, value='Average Post-Shock Performance (All 7 Shocks)').font = Font(bold=True, size=13, color=DB_BLUE)
+    r += 1
+    avg_headers = ['Horizon', 'N', 'REIT Cumulative %', 'S&P Cumulative %', 'REIT Excess %', 'Oil Cumulative %', '10Y Chg (pp)', '3M Chg (pp)']
+    _header_row(wsp, r, avg_headers)
+    r += 1
+    for horizon in ['3M', '6M', '12M']:
+        avg = post_shock_avg.get(horizon)
+        if not avg:
+            continue
+        wsp.cell(row=r, column=1, value=horizon).font = BOLD
+        wsp.cell(row=r, column=2, value=avg['n'])
+        wsp.cell(row=r, column=3, value=avg['reit_ret']).number_format = '0.00'
+        wsp.cell(row=r, column=4, value=avg['spx_ret']).number_format = '0.00'
+        wsp.cell(row=r, column=5, value=avg['excess_ret']).number_format = '0.00'
+        # Color excess: green if positive, red if negative
+        if avg['excess_ret'] > 0:
+            wsp.cell(row=r, column=5).font = Font(bold=True, color='336633')
+        elif avg['excess_ret'] < 0:
+            wsp.cell(row=r, column=5).font = Font(bold=True, color='CC0000')
+        wsp.cell(row=r, column=6, value=avg['oil_chg']).number_format = '0.00'
+        wsp.cell(row=r, column=7, value=avg['d_t10y']).number_format = '0.000'
+        wsp.cell(row=r, column=8, value=avg['d_t3m']).number_format = '0.000'
+        for c in range(1, 9):
+            wsp.cell(row=r, column=c).border = THIN_BORDER
+            wsp.cell(row=r, column=c).fill = LIGHT_FILL
+        r += 1
+    r += 2
+
+    # Detail by shock and horizon
+    wsp.cell(row=r, column=1, value='Detail by Shock Episode').font = Font(bold=True, size=13, color=DB_BLUE)
+    r += 1
+    detail_headers = ['Shock Episode', 'Horizon', 'Months', 'REIT Cumulative %', 'S&P Cumulative %',
+                       'REIT Excess %', 'Oil Cumulative %', '10Y Chg (pp)', '3M Chg (pp)']
+    _header_row(wsp, r, detail_headers)
+    r += 1
+
+    current_shock = None
+    for ps in post_shock:
+        # Add a light separator between shock episodes
+        if ps['shock'] != current_shock:
+            if current_shock is not None:
+                r += 1  # blank row between episodes
+            current_shock = ps['shock']
+            wsp.cell(row=r, column=1, value=ps['shock']).font = Font(bold=True, color=DB_BLUE)
+        else:
+            wsp.cell(row=r, column=1, value='')
+
+        wsp.cell(row=r, column=2, value=ps['horizon'])
+        wsp.cell(row=r, column=3, value=ps['months_actual'])
+        wsp.cell(row=r, column=4, value=ps['reit_ret']).number_format = '0.00'
+        wsp.cell(row=r, column=5, value=ps['spx_ret']).number_format = '0.00'
+        wsp.cell(row=r, column=6, value=ps['excess_ret']).number_format = '0.00'
+        if ps['excess_ret'] > 0:
+            wsp.cell(row=r, column=6).font = Font(bold=True, color='336633')
+        elif ps['excess_ret'] < 0:
+            wsp.cell(row=r, column=6).font = Font(bold=True, color='CC0000')
+        wsp.cell(row=r, column=7, value=ps['oil_chg']).number_format = '0.00'
+        wsp.cell(row=r, column=8, value=ps['d_t10y']).number_format = '0.000'
+        wsp.cell(row=r, column=9, value=ps['d_t3m']).number_format = '0.000'
+        for c in range(1, 10):
+            wsp.cell(row=r, column=c).border = THIN_BORDER
+        r += 1
+
+    r += 2
+    wsp.cell(row=r, column=1, value='Notes').font = Font(bold=True, size=11, color=DB_BLUE)
+    r += 1
+    notes_text = [
+        'REIT/S&P returns are compounded monthly cumulative returns over the horizon period.',
+        'REIT Excess = REIT cumulative return minus S&P cumulative return. Green = REITs outperformed.',
+        'Oil Cumulative % = compounded cumulative oil price change over the period.',
+        '10Y/3M Chg = sum of monthly changes in the rate (in percentage points) over the period.',
+        'Horizon starts the first month after the shock window ends.',
+    ]
+    for note in notes_text:
+        wsp.cell(row=r, column=1, value=note).font = ITALIC_GRAY
+        r += 1
+
+    _auto_width(wsp)
+
+    # ==================================================================
+    # TAB 11: CHARTS
     # ==================================================================
     ws6 = wb.create_sheet('Charts')
 
@@ -1201,42 +1317,6 @@ def build_excel(data, regressions):
     c4.y_axis.crosses = 'min'
     c4 += c4b
     ws6.add_chart(c4, 'L18')
-
-    # ==================================================================
-    # TAB 11: SAKS CLOSURES
-    # ==================================================================
-    import openpyxl as _opx
-    import os as _os
-    saks_path = _os.path.join(_os.path.dirname(__file__), 'Saks_Closures_Landlord_Exposure.xlsx')
-    if _os.path.exists(saks_path):
-        src = _opx.load_workbook(saks_path)
-        src_ws = src.active
-        ws_saks = wb.create_sheet('Saks Closures')
-        for r_idx in range(1, src_ws.max_row + 1):
-            for c_idx in range(1, src_ws.max_column + 1):
-                src_cell = src_ws.cell(r_idx, c_idx)
-                dst_cell = ws_saks.cell(r_idx, c_idx, value=src_cell.value)
-                # Copy key formatting
-                if src_cell.font:
-                    dst_cell.font = src_cell.font.copy()
-                if src_cell.fill and src_cell.fill.fgColor and src_cell.fill.fgColor.rgb and src_cell.fill.fgColor.rgb != '00000000':
-                    dst_cell.fill = src_cell.fill.copy()
-                if src_cell.alignment:
-                    dst_cell.alignment = src_cell.alignment.copy()
-                if src_cell.border:
-                    dst_cell.border = src_cell.border.copy()
-                if src_cell.number_format:
-                    dst_cell.number_format = src_cell.number_format
-        # Copy column widths
-        for col_letter, dim in src_ws.column_dimensions.items():
-            ws_saks.column_dimensions[col_letter].width = dim.width
-        # Copy merged cells
-        for merged in src_ws.merged_cells.ranges:
-            ws_saks.merge_cells(str(merged))
-        # Copy row heights
-        for r_idx, dim in src_ws.row_dimensions.items():
-            if dim.height:
-                ws_saks.row_dimensions[r_idx].height = dim.height
 
     buf = io.BytesIO()
     wb.save(buf)
