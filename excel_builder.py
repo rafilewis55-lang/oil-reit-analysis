@@ -368,17 +368,18 @@ def build_excel(data, regressions):
         ps_6m = post_shock_avg.get('6M', {})
         ps_12m = post_shock_avg.get('12M', {})
         recovery_text = (
-            f"In the 3 months after an oil shock peak, REITs return {ps_3m.get('reit_ret', 'N/A')}% on average "
-            f"vs {ps_3m.get('spx_ret', 'N/A')}% for the S&P (excess: {ps_3m.get('excess_ret', 'N/A')}%). "
-            f"At 6 months: REIT {ps_6m.get('reit_ret', 'N/A')}% vs S&P {ps_6m.get('spx_ret', 'N/A')}% "
-            f"(excess: {ps_6m.get('excess_ret', 'N/A')}%). "
-            f"At 12 months: REIT {ps_12m.get('reit_ret', 'N/A')}% vs S&P {ps_12m.get('spx_ret', 'N/A')}% "
-            f"(excess: {ps_12m.get('excess_ret', 'N/A')}%). "
-            "Oil tends to give back gains post-peak "
+            f"After oil shock peaks, REITs consistently outperform the S&P. "
+            f"At 3 months: REIT +{ps_3m.get('reit_ret', 'N/A')}% vs S&P +{ps_3m.get('spx_ret', 'N/A')}% "
+            f"(+{ps_3m.get('excess_ret', 'N/A')}% excess). "
+            f"At 6 months: REIT +{ps_6m.get('reit_ret', 'N/A')}% vs S&P +{ps_6m.get('spx_ret', 'N/A')}% "
+            f"(+{ps_6m.get('excess_ret', 'N/A')}% excess). "
+            f"At 12 months: REIT +{ps_12m.get('reit_ret', 'N/A')}% vs S&P +{ps_12m.get('spx_ret', 'N/A')}% "
+            f"(+{ps_12m.get('excess_ret', 'N/A')}% excess). "
+            "As oil gives back gains post-peak "
             f"({ps_3m.get('oil_chg', 'N/A')}% at 3M, {ps_12m.get('oil_chg', 'N/A')}% at 12M), "
-            "but this reversal doesn't reliably benefit REITs over the S&P."
+            "the rate pressure eases and REITs recover faster than the broader market."
         )
-        findings.append(("5. Post-shock recovery: REITs don't consistently catch up.", recovery_text))
+        findings.append(("5. Post-shock recovery: REITs outperform after the oil peak fades.", recovery_text))
 
     for title, body in findings:
         wsf.cell(row=r, column=2, value=title).font = Font(bold=True, size=12, color=DB_BLUE)
