@@ -16,18 +16,23 @@ from openpyxl.chart import ScatterChart, Reference, Series, LineChart
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+# Deutsche Bank style: #0018A8 dark blue, #E8EDF2 light blue-gray, clean/minimal
+DB_BLUE = '0018A8'
+DB_LIGHT = 'E8EDF2'
+DB_MID = 'C7D3E3'
+
 HEADER_FONT = Font(bold=True, color='FFFFFF', size=11)
-HEADER_FILL = PatternFill('solid', fgColor='2F5496')
-RED_FILL = PatternFill('solid', fgColor='C00000')
+HEADER_FILL = PatternFill('solid', fgColor=DB_BLUE)
+RED_FILL = PatternFill('solid', fgColor=DB_BLUE)
 RED_FONT = Font(bold=True, color='FFFFFF', size=11)
-LIGHT_FILL = PatternFill('solid', fgColor='D6E4F0')
-SHOCK_FILL = PatternFill('solid', fgColor='FCE4EC')
-GREEN_FILL = PatternFill('solid', fgColor='E2EFDA')
+LIGHT_FILL = PatternFill('solid', fgColor=DB_LIGHT)
+SHOCK_FILL = PatternFill('solid', fgColor='F5E6E8')
+GREEN_FILL = PatternFill('solid', fgColor='E6EFE6')
 BOLD = Font(bold=True)
-BLUE = Font(color='2F5496')
-BLUE_BOLD = Font(bold=True, color='2F5496')
+BLUE = Font(color=DB_BLUE)
+BLUE_BOLD = Font(bold=True, color=DB_BLUE)
 ITALIC_GRAY = Font(italic=True, color='888888')
-THIN_BORDER = Border(bottom=Side(style='thin', color='B4C6E7'))
+THIN_BORDER = Border(bottom=Side(style='thin', color=DB_MID))
 
 
 def _header_row(ws, row, headers, fill=HEADER_FILL, font=HEADER_FONT):
@@ -55,7 +60,7 @@ def _write_model_row(ws, row, var_name, coef, se, tstat, pval):
     ws.cell(row=row, column=5, value=round(float(pval), 4)).number_format = '0.0000'
     ws.cell(row=row, column=6, value=sig)
     if pval < 0.05:
-        ws.cell(row=row, column=6).font = Font(bold=True, color='C00000')
+        ws.cell(row=row, column=6).font = Font(bold=True, color=DB_BLUE)
     for c in range(1, 7):
         ws.cell(row=row, column=c).border = THIN_BORDER
 
@@ -63,7 +68,7 @@ def _write_model_row(ws, row, var_name, coef, se, tstat, pval):
 def _write_reg_block(ws, start_row, title, model, include_linest=False, linest_base=None):
     """Write a full regression block. Returns next free row."""
     r = start_row
-    ws.cell(row=r, column=1, value=title).font = Font(bold=True, size=12, color='2F5496')
+    ws.cell(row=r, column=1, value=title).font = Font(bold=True, size=12, color=DB_BLUE)
     r += 1
 
     # Summary stats
@@ -136,7 +141,6 @@ def build_excel(data, regressions):
     # ==================================================================
     ws = wb.active
     ws.title = 'Data'
-    ws.sheet_properties.tabColor = '2F5496'
 
     headers = ['Date', 'Oil Price', 'Oil Chg %', 'REIT Return %',
                'S&P 500 Return %', 'REIT Excess Return %',
@@ -167,9 +171,8 @@ def build_excel(data, regressions):
     # TAB 2: SHOCK PERIODS
     # ==================================================================
     ws2 = wb.create_sheet('Shock Periods')
-    ws2.sheet_properties.tabColor = 'C00000'
 
-    ws2.cell(row=1, column=1, value='Oil Shock Period Identification').font = Font(bold=True, size=14, color='2F5496')
+    ws2.cell(row=1, column=1, value='Oil Shock Period Identification').font = Font(bold=True, size=14, color=DB_BLUE)
     ws2.cell(row=2, column=1, value=f'1 Std Dev of monthly oil change = {oil_std:.1f}%. Months highlighted in pink are shock months.').font = ITALIC_GRAY
 
     # Monthly shock flags
@@ -212,7 +215,7 @@ def build_excel(data, regressions):
 
     # Historical shock windows list
     r += 2
-    ws2.cell(row=r, column=1, value='Historical Shock Windows').font = Font(bold=True, size=13, color='2F5496')
+    ws2.cell(row=r, column=1, value='Historical Shock Windows').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
     _header_row(ws2, r, ['Period', 'Start', 'End', 'Months', 'Avg Oil Chg %',
                           'Avg REIT Excess %', 'Avg 10Y Chg (pp)'])
@@ -235,7 +238,7 @@ def build_excel(data, regressions):
 
     # Shock definition counts
     r += 2
-    ws2.cell(row=r, column=1, value='Shock Definition Summary').font = Font(bold=True, size=13, color='2F5496')
+    ws2.cell(row=r, column=1, value='Shock Definition Summary').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
     _header_row(ws2, r, ['Definition', 'Months', '% of Sample'])
     r += 1
@@ -254,9 +257,8 @@ def build_excel(data, regressions):
     # TAB 3: CORRELATIONS (CORREL formulas)
     # ==================================================================
     ws3 = wb.create_sheet('Correlations')
-    ws3.sheet_properties.tabColor = '548235'
 
-    ws3.cell(row=1, column=1, value='Correlation Matrix (Full Sample)').font = Font(bold=True, size=14, color='2F5496')
+    ws3.cell(row=1, column=1, value='Correlation Matrix (Full Sample)').font = Font(bold=True, size=14, color=DB_BLUE)
     ws3.cell(row=2, column=1, value='All values are CORREL() formulas referencing the Data tab').font = ITALIC_GRAY
 
     corr_vars = [
@@ -282,10 +284,9 @@ def build_excel(data, regressions):
     # TAB 4: FULL SAMPLE REGRESSIONS
     # ==================================================================
     ws4 = wb.create_sheet('Full Sample Regressions')
-    ws4.sheet_properties.tabColor = 'BF8F00'
 
     r = 1
-    ws4.cell(row=r, column=1, value='Full Sample Regression Results').font = Font(bold=True, size=14, color='2F5496')
+    ws4.cell(row=r, column=1, value='Full Sample Regression Results').font = Font(bold=True, size=14, color=DB_BLUE)
     r += 1
     ws4.cell(row=r, column=1, value='Black = values. Blue = LINEST formula cross-check. *** p<0.01  ** p<0.05  * p<0.1').font = ITALIC_GRAY
     r += 2
@@ -325,16 +326,15 @@ def build_excel(data, regressions):
     # TAB 5: SHOCK REGRESSIONS
     # ==================================================================
     ws5 = wb.create_sheet('Shock Regressions')
-    ws5.sheet_properties.tabColor = 'C00000'
 
     r = 1
-    ws5.cell(row=r, column=1, value='Regressions During Oil Shock Periods').font = Font(bold=True, size=14, color='C00000')
+    ws5.cell(row=r, column=1, value='Regressions During Oil Shock Periods').font = Font(bold=True, size=14, color=DB_BLUE)
     r += 1
     ws5.cell(row=r, column=1, value='Same models as Full Sample tab, but restricted to shock months only. *** p<0.01  ** p<0.05  * p<0.1').font = ITALIC_GRAY
     r += 2
 
     # Comparison table: all shock defs side by side for the REIT regression
-    ws5.cell(row=r, column=1, value='REIT Excess Return ~ Oil + Rate Changes: Shock vs Full Sample').font = Font(bold=True, size=13, color='2F5496')
+    ws5.cell(row=r, column=1, value='REIT Excess Return ~ Oil + Rate Changes: Shock vs Full Sample').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
 
     comp_headers = ['Shock Definition', 'N', 'R-sq',
@@ -344,9 +344,9 @@ def build_excel(data, regressions):
     _header_row(ws5, r, comp_headers)
     r += 1
 
-    # Full sample first
-    m_full = regressions['reit_m1_levels_chg']
-    ws5.cell(row=r, column=1, value='FULL SAMPLE').font = Font(bold=True, color='2F5496')
+    # Full sample first (HC1 to match shock rows)
+    m_full = regressions['reit_full_hc1']
+    ws5.cell(row=r, column=1, value='FULL SAMPLE').font = Font(bold=True, color=DB_BLUE)
     ws5.cell(row=r, column=2, value=int(m_full.nobs))
     ws5.cell(row=r, column=3, value=round(float(m_full.rsquared), 4)).number_format = '0.0000'
     for vi, var in enumerate(['oil_chg', 'd_t10y', 'd_t3m']):
@@ -387,7 +387,7 @@ def build_excel(data, regressions):
             cell_p = ws5.cell(row=r, column=base_col+2, value=round(pval, 4))
             cell_p.number_format = '0.0000'
             if pval < 0.05:
-                cell_p.font = Font(bold=True, color='C00000')
+                cell_p.font = Font(bold=True, color=DB_BLUE)
         for c in range(1, 13):
             ws5.cell(row=r, column=c).border = THIN_BORDER
         if label == 'Calm months (|oil| < 1 SD)':
@@ -397,14 +397,14 @@ def build_excel(data, regressions):
 
     # Same comparison for Oil -> 10Y regression
     r += 2
-    ws5.cell(row=r, column=1, value='10Y Rate Change ~ Oil Change: Shock vs Full Sample').font = Font(bold=True, size=13, color='2F5496')
+    ws5.cell(row=r, column=1, value='10Y Rate Change ~ Oil Change: Shock vs Full Sample').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
     comp_h2 = ['Shock Definition', 'N', 'R-sq', 'Oil Coef', 'Oil t-stat', 'Oil p-val']
     _header_row(ws5, r, comp_h2)
     r += 1
 
-    m_full2 = regressions['t10y_on_oil_ols']
-    ws5.cell(row=r, column=1, value='FULL SAMPLE').font = Font(bold=True, color='2F5496')
+    m_full2 = regressions['t10y_on_oil']  # HC1 to match shock rows
+    ws5.cell(row=r, column=1, value='FULL SAMPLE').font = Font(bold=True, color=DB_BLUE)
     ws5.cell(row=r, column=2, value=int(m_full2.nobs))
     ws5.cell(row=r, column=3, value=round(float(m_full2.rsquared), 4)).number_format = '0.0000'
     ws5.cell(row=r, column=4, value=round(float(m_full2.params['oil_chg']), 4)).number_format = '0.0000'
@@ -433,7 +433,7 @@ def build_excel(data, regressions):
         cell_p = ws5.cell(row=r, column=6, value=round(pval, 4))
         cell_p.number_format = '0.0000'
         if pval < 0.05:
-            cell_p.font = Font(bold=True, color='C00000')
+            cell_p.font = Font(bold=True, color=DB_BLUE)
         for c in range(1, 7):
             ws5.cell(row=r, column=c).border = THIN_BORDER
         if label == 'Calm months (|oil| < 1 SD)':
@@ -443,7 +443,7 @@ def build_excel(data, regressions):
 
     # Full detail blocks for key shock definitions
     r += 2
-    ws5.cell(row=r, column=1, value='Detailed Regression Output by Shock Definition').font = Font(bold=True, size=14, color='2F5496')
+    ws5.cell(row=r, column=1, value='Detailed Regression Output by Shock Definition').font = Font(bold=True, size=14, color=DB_BLUE)
     r += 2
 
     for label in ['1 SD (|oil| > 1 std dev)', '1.5 SD (|oil| > 1.5 std dev)',
@@ -466,12 +466,11 @@ def build_excel(data, regressions):
     # TAB 6: KEY FINDINGS
     # ==================================================================
     wsf = wb.create_sheet('Key Findings')
-    wsf.sheet_properties.tabColor = '548235'
     wsf.column_dimensions['A'].width = 4
     wsf.column_dimensions['B'].width = 90
 
     r = 1
-    wsf.cell(row=r, column=2, value='Key Findings: Oil, REITs & Interest Rates').font = Font(bold=True, size=16, color='2F5496')
+    wsf.cell(row=r, column=2, value='Key Findings: Oil, REITs & Interest Rates').font = Font(bold=True, size=16, color=DB_BLUE)
     r += 2
 
     findings = [
@@ -504,7 +503,7 @@ def build_excel(data, regressions):
     ]
 
     for title, body in findings:
-        wsf.cell(row=r, column=2, value=title).font = Font(bold=True, size=12, color='2F5496')
+        wsf.cell(row=r, column=2, value=title).font = Font(bold=True, size=12, color=DB_BLUE)
         r += 1
         wsf.cell(row=r, column=2, value=body).alignment = Alignment(wrap_text=True)
         # Auto-height: roughly 1 row per 90 chars
@@ -513,14 +512,14 @@ def build_excel(data, regressions):
         r += 2
 
     r += 1
-    wsf.cell(row=r, column=2, value='Supporting Evidence (from Shock Regressions tab)').font = Font(bold=True, size=13, color='2F5496')
+    wsf.cell(row=r, column=2, value='Supporting Evidence (from Shock Regressions tab)').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
 
     evidence = [
         ['Metric', 'Full Sample', 'Shock (1 SD)', 'Extreme (1.5 SD)', 'Oil Crash (<-10%)'],
     ]
-    # Pull actual numbers
-    m_full = regressions['reit_m1_levels_chg']
+    # Pull actual numbers (HC1 to match shock regressions)
+    m_full = regressions['reit_full_hc1']
     sr_1sd = shock_results.get('1 SD (|oil| > 1 std dev)', {})
     sr_15sd = shock_results.get('1.5 SD (|oil| > 1.5 std dev)', {})
     sr_crash = shock_results.get('Oil crash (<-10%)', {})
@@ -554,7 +553,7 @@ def build_excel(data, regressions):
                      _safe(sr_15sd, 'reit', 'pvalues', 'd_t10y'),
                      _safe(sr_crash, 'reit', 'pvalues', 'd_t10y')])
 
-    m_full_10y = regressions['t10y_on_oil_ols']
+    m_full_10y = regressions['t10y_on_oil']  # HC1 to match shock rows
     evidence.append(['Oil->10Y: R-squared',
                      round(float(m_full_10y.rsquared), 4),
                      _safe(sr_1sd, 't10y', 'rsquared'),
@@ -587,14 +586,13 @@ def build_excel(data, regressions):
     # TAB 7: SOURCES
     # ==================================================================
     wss = wb.create_sheet('Sources')
-    wss.sheet_properties.tabColor = '333333'
     wss.column_dimensions['A'].width = 4
     wss.column_dimensions['B'].width = 30
     wss.column_dimensions['C'].width = 65
     wss.column_dimensions['D'].width = 55
 
     r = 1
-    wss.cell(row=r, column=2, value='Data Sources').font = Font(bold=True, size=16, color='2F5496')
+    wss.cell(row=r, column=2, value='Data Sources').font = Font(bold=True, size=16, color=DB_BLUE)
     r += 2
     _header_row(wss, r, ['', 'Source', 'URL', 'Used For'])
     r += 1
@@ -631,7 +629,7 @@ def build_excel(data, regressions):
         r += 1
 
     r += 2
-    wss.cell(row=r, column=2, value='Methodology Notes').font = Font(bold=True, size=13, color='2F5496')
+    wss.cell(row=r, column=2, value='Methodology Notes').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
     notes = [
         ('REIT Index Splice',
@@ -660,7 +658,6 @@ def build_excel(data, regressions):
     # TAB 8: FLASH NOTE (Iran War & REITs)
     # ==================================================================
     wsfn = wb.create_sheet('Flash Note')
-    wsfn.sheet_properties.tabColor = '7F2B0A'
     wsfn.column_dimensions['A'].width = 4
     wsfn.column_dimensions['B'].width = 22
     wsfn.column_dimensions['C'].width = 22
@@ -668,11 +665,11 @@ def build_excel(data, regressions):
     wsfn.column_dimensions['E'].width = 22
     wsfn.column_dimensions['F'].width = 22
 
-    DARK_FILL = PatternFill('solid', fgColor='2F5496')
-    MAROON_FILL = PatternFill('solid', fgColor='7F2B0A')
+    DARK_FILL = PatternFill('solid', fgColor=DB_BLUE)
+    MAROON_FILL = PatternFill('solid', fgColor=DB_BLUE)
     WHITE_BOLD = Font(bold=True, color='FFFFFF', size=11)
-    SECTION_FONT = Font(bold=True, size=13, color='2F5496')
-    SUBSECTION_FONT = Font(bold=True, size=11, color='7F2B0A')
+    SECTION_FONT = Font(bold=True, size=13, color=DB_BLUE)
+    SUBSECTION_FONT = Font(bold=True, size=11, color=DB_BLUE)
 
     r = 1
     # Title block
@@ -680,7 +677,7 @@ def build_excel(data, regressions):
     wsfn.cell(row=r, column=2, value='EQUITY RESEARCH  |  REAL ESTATE  |  REIT Sector Flash Note').font = Font(bold=True, size=9, color='888888')
     r += 1
     wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
-    wsfn.cell(row=r, column=2, value='Iran War & REITs: The Rate Channel Is What Matters').font = Font(bold=True, size=16, color='2F5496')
+    wsfn.cell(row=r, column=2, value='Iran War & REITs: The Rate Channel Is What Matters').font = Font(bold=True, size=16, color=DB_BLUE)
     r += 1
     wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
     wsfn.cell(row=r, column=2, value='Oil is the headline. Rates are the mechanism. Subsector dispersion is the opportunity.').font = Font(italic=True, size=11, color='555555')
@@ -733,7 +730,7 @@ def build_excel(data, regressions):
         ('FED', 'Rate cuts pushed out. Prior consensus: cuts resume H2 2026. Now: cuts likely delayed to Q4 2026 at earliest under base case; potentially 2027 in bear case.'),
     ]
     for label, desc in macro_vars:
-        wsfn.cell(row=r, column=2, value=label).font = Font(bold=True, size=11, color='2F5496')
+        wsfn.cell(row=r, column=2, value=label).font = Font(bold=True, size=11, color=DB_BLUE)
         wsfn.cell(row=r, column=2).fill = LIGHT_FILL
         wsfn.merge_cells(start_row=r, start_column=3, end_row=r, end_column=6)
         wsfn.cell(row=r, column=3, value=desc).alignment = Alignment(wrap_text=True)
@@ -779,7 +776,7 @@ def build_excel(data, regressions):
         wsfn.cell(row=r, column=2, value=regime)
         wsfn.cell(row=r, column=3, value=coef).alignment = Alignment(horizontal='center')
         wsfn.cell(row=r, column=4, value=pval).alignment = Alignment(horizontal='center')
-        wsfn.cell(row=r, column=5, value=verdict).font = Font(color='548235')
+        wsfn.cell(row=r, column=5, value=verdict).font = Font(color='336633')
         for col in range(2, 6):
             wsfn.cell(row=r, column=col).border = THIN_BORDER
         r += 1
@@ -804,55 +801,6 @@ def build_excel(data, regressions):
     wsfn.cell(row=r, column=2, value=oil_10y_text).alignment = Alignment(wrap_text=True)
     wsfn.row_dimensions[r].height = 48
     r += 2
-
-    # --- Exhibit charts embedded in Flash Note ---
-    wsfn.cell(row=r, column=2, value='Exhibit 2: Oil Has No Direct Effect on REIT Relative Performance').font = SUBSECTION_FONT
-    r += 1
-    # Chart: Oil Change vs REIT Excess Return
-    cfn1 = ScatterChart()
-    cfn1.title = 'Oil Price Change vs REIT Excess Return'
-    cfn1.x_axis.title = 'Monthly Oil Change (%)'
-    cfn1.y_axis.title = 'REIT vs S&P (%)'
-    cfn1.width = 18
-    cfn1.height = 12
-    cfn1.legend = None
-    sfn1 = Series(Reference(ws, min_col=6, min_row=2, max_row=last_row),
-                  Reference(ws, min_col=3, min_row=2, max_row=last_row), title='Monthly')
-    sfn1.graphicalProperties.noFill = True
-    cfn1.series.append(sfn1)
-    wsfn.add_chart(cfn1, f'B{r}')
-    r += 16
-
-    wsfn.cell(row=r, column=2, value='Exhibit 3: The Indirect Channel').font = SUBSECTION_FONT
-    r += 1
-    # Chart: Oil Change vs 10Y Rate Change
-    cfn2 = ScatterChart()
-    cfn2.title = 'Oil Change vs 10Y Rate Change'
-    cfn2.x_axis.title = 'Monthly Oil Change (%)'
-    cfn2.y_axis.title = '10Y Rate Change (pp)'
-    cfn2.width = 18
-    cfn2.height = 12
-    cfn2.legend = None
-    sfn2 = Series(Reference(ws, min_col=11, min_row=2, max_row=last_row),
-                  Reference(ws, min_col=3, min_row=2, max_row=last_row), title='Monthly')
-    sfn2.graphicalProperties.noFill = True
-    cfn2.series.append(sfn2)
-    wsfn.add_chart(cfn2, f'B{r}')
-
-    # Chart: 10Y Rate Change vs REIT Excess Return
-    cfn3 = ScatterChart()
-    cfn3.title = '10Y Rate Change vs REIT Excess Return'
-    cfn3.x_axis.title = '10Y Rate Change (pp)'
-    cfn3.y_axis.title = 'REIT vs S&P (%)'
-    cfn3.width = 18
-    cfn3.height = 12
-    cfn3.legend = None
-    sfn3 = Series(Reference(ws, min_col=6, min_row=2, max_row=last_row),
-                  Reference(ws, min_col=11, min_row=2, max_row=last_row), title='Monthly')
-    sfn3.graphicalProperties.noFill = True
-    cfn3.series.append(sfn3)
-    wsfn.add_chart(cfn3, f'E{r}')
-    r += 16
 
     asym_text = ("Important asymmetry: oil crashes (<-10%) produce a significantly different dynamic than oil spikes. "
                  "Crashes pull rates down, and the rate->REIT channel becomes highly significant (p=0.005, coef=-10.6). "
@@ -887,9 +835,9 @@ def build_excel(data, regressions):
     ]
 
     view_colors = {
-        'CONSTRUCTIVE': '548235', 'POSITIVE': '548235',
-        'NEUTRAL': 'BF8F00',
-        'CAUTIOUS': 'C00000', 'AVOID': 'C00000',
+        'CONSTRUCTIVE': '336633', 'POSITIVE': '336633',
+        'NEUTRAL': '666666',
+        'CAUTIOUS': 'CC0000', 'AVOID': 'CC0000',
     }
     for name, rate_sens, oil_inf, demand, view in subsectors:
         wsfn.cell(row=r, column=2, value=name).font = BOLD
@@ -910,29 +858,60 @@ def build_excel(data, regressions):
 
     # Subsector commentary
     sub_commentary = [
-        ('Industrial -- Best Positioned',
-         'The war is accelerating supply chain regionalization already underway. Manufacturers are likely to fast-track '
-         'plans to shift Asia-Pacific-dependent supply chains, driving incremental demand for US warehouse and distribution '
-         'space. Industrial REITs with port-adjacent and Sunbelt logistics exposure are the clearest beneficiary.'),
-        ('Data Centers -- Constructive With Energy Watch',
-         'AI data center demand is durable and decoupled from geopolitical risk. The key watch item is natural gas prices: '
-         'most data center leases pass through power costs to tenants, providing a structural hedge. The secular AI capex '
-         'cycle supersedes near-term energy cost noise.'),
-        ('Net Lease -- Duration Risk',
-         'The most bond-like part of the REIT universe. Long-duration, fixed-escalator leases mean cap rate expansion from '
-         'rising rates flows directly into relative underperformance. The sector was already trading at tight spreads to '
-         'Treasuries pre-war; that cushion compresses further with the 10Y at 4.1%+.'),
-        ('Hotels -- Near-Term Avoid',
-         'Direct cost inflation (energy, transport) combines with acute demand disruption. Global travel has been significantly '
-         'impacted; business travel to the Middle East and gateway markets is functionally halted. RevPAR pressure in Q1/Q2 2026 '
-         'is likely material.'),
+        ('Industrial -- Best Positioned Relative to Peers, But Still Under Pressure',
+         'To be clear: industrial REITs sold off last week alongside the broader REIT market. PLD closed March 6 at '
+         '$141.51, down roughly 1.9% on the day; REXR, FR, and TRNO all posted similar losses, and the subsector is '
+         'lower in absolute terms since February 28. This is not a thesis about industrial REITs going up -- it is a '
+         'thesis about relative outperformance vs. a REIT universe that is all under pressure. The 10Y rate channel '
+         'that our regression identifies as the primary REIT headwind affects every subsector, and industrials are no '
+         'exception. What separates them is a demand-side offset that does not exist elsewhere. A functionally closed '
+         'Strait of Hormuz and oil surging past $100 -- WTI hit $119 intraday on March 9, its highest since 2022 -- '
+         'are forcing companies to urgently reprice Asia-Pacific supply chain dependency, accelerating reshoring '
+         'decisions that drive incremental US warehouse and logistics demand. Historical oil shock episodes support '
+         'this dynamic: during the 1990 Gulf War and the 2022 Russia-Ukraine surge, industrial names held up materially '
+         'better than net lease and residential on a relative basis as supply chain disruption narratives accelerated '
+         'leasing activity. In the current episode, West Coast port-adjacent names (TRNO, FR) are the clearest relative '
+         'beneficiaries given likely trade flow rerouting, though REXR carries near-term SoCal vacancy headwinds. '
+         "PLD's international exposure is a two-sided watch item. The reshoring benefit is a 4-8 quarter NOI story, "
+         'not a Q1 catalyst -- but relative to a REIT universe where the macro headwind is hitting everyone, industrials '
+         'offer the best structural offset.'),
+        ('Net Lease -- Worst Positioned, and Already Showing It',
+         'Net lease has underperformed the broader REIT index since the conflict began on February 28, and the mechanism '
+         'is exactly what our regression predicts. NNN entered the conflict near its 52-week high of $44.29 -- priced '
+         'for the rate-cut cycle the market had been expecting in 2026 -- and has since pulled back as the 10Y pushed '
+         'above 4.1% and oil above $100 extended the inflation case against near-term cuts. The structural problem is '
+         'duration: net lease WALTs of 10+ years with fixed rent escalators mean these securities are effectively marked '
+         'to the risk-free rate in real time. When the 10Y moves, NAVs move with it. During the 2022 Russia-Ukraine '
+         'rate shock -- the closest historical analog -- NNN, O, and ADC underperformed the REIT index by 800-1200bps '
+         'as the 10Y moved from 1.8% to 4.0%. The current episode compounds that dynamic: Brent crude touching $119 '
+         'intraday on March 9 and WTI posting its largest single-week gain in futures history means the inflation '
+         'pressure keeping the Fed sidelined is not going away quickly. NNN\'s underlying fundamentals are not the '
+         'issue -- Q4 2025 showed FFO of $0.87 vs. $0.86 estimate and record $900M acquisition volume -- but clean '
+         'fundamentals provide no shelter from rate-driven multiple compression. The entire net lease complex is in '
+         'the wrong part of the trade until the 10Y definitively rolls over on a ceasefire or demand destruction signal.'),
+        ('Hotels -- Avoid: Dual Hit to Costs and Revenue',
+         'Hotel REITs have sold off more sharply than most REIT subsectors since February 28 -- and unlike industrials, '
+         'where the headwind is primarily macro and shared across the sector, hotels face a simultaneous hit to both '
+         'sides of the P&L that is unique to this conflict. On costs: WTI rose 35%+ last week (the largest single-week '
+         'gain in futures history) and crossed $100, pushing energy, transport, and food service costs materially higher '
+         'across hotel operations. On revenue: Dubai International Airport sustained damage and suspended operations; '
+         'over 4,000 daily flight cancellations occurred across Gulf state airspace; and major carriers including '
+         'British Airways, Lufthansa, and Air India all suspended Middle East service. US State Department travel '
+         'warnings now cover Saudi Arabia, Kuwait, Cyprus, and Lebanon, functionally halting business travel to the '
+         'affected region. Gateway markets dependent on international inbound traffic -- NYC, LA, Miami -- face '
+         'secondary RevPAR pressure that will appear in Q1 2026 results. History is consistent: hotel REITs '
+         'underperformed the REIT index by the widest margin of any subsector during the Gulf War (1990), post-9/11, '
+         'and Russia-Ukraine (2022). HST, RHP, and PK all entered 2026 with positive RevPAR momentum that is now at '
+         'direct risk. Unlike net lease, where the fundamental business continues to collect rent while multiples '
+         'compress, hotel NOI itself is impaired. That distinction makes this the clearest avoid in the REIT universe '
+         'for the duration of the conflict.'),
     ]
     for title, text in sub_commentary:
         wsfn.cell(row=r, column=2, value=title).font = SUBSECTION_FONT
         r += 1
         wsfn.merge_cells(start_row=r, start_column=2, end_row=r, end_column=6)
         wsfn.cell(row=r, column=2, value=text).alignment = Alignment(wrap_text=True)
-        wsfn.row_dimensions[r].height = 48
+        wsfn.row_dimensions[r].height = max(64, len(text) // 80 * 16 + 20)
         r += 2
 
     # Scenario Analysis
@@ -970,7 +949,7 @@ def build_excel(data, regressions):
     c = wsfn.cell(row=r, column=2, value='TAIL RISK TO MONITOR')
     c.font = Font(bold=True, color='FFFFFF')
     for col in range(2, 7):
-        wsfn.cell(row=r, column=col).fill = PatternFill('solid', fgColor='C00000')
+        wsfn.cell(row=r, column=col).fill = PatternFill('solid', fgColor=DB_BLUE)
     r += 1
     tail_text = ("If oil reaches $100+ and recession fears take hold, the dynamic flips. The historical data shows that "
                  "oil crashes -- the demand-destruction phase of an energy shock -- pull the 10Y down sharply. In that "
@@ -1017,10 +996,152 @@ def build_excel(data, regressions):
     wsfn.row_dimensions[r].height = 48
 
     # ==================================================================
-    # TAB 9: CHARTS
+    # TAB 9: NOTE SOURCES
+    # ==================================================================
+    wsns = wb.create_sheet('Note Sources')
+    wsns.column_dimensions['A'].width = 4
+    wsns.column_dimensions['B'].width = 8
+    wsns.column_dimensions['C'].width = 35
+    wsns.column_dimensions['D'].width = 80
+    wsns.column_dimensions['E'].width = 65
+
+    r = 1
+    wsns.cell(row=r, column=2, value='Flash Note Sources').font = Font(bold=True, size=16, color=DB_BLUE)
+    r += 2
+    _header_row(wsns, r, ['', '#', 'Source', 'Link', 'Used For'])
+    r += 1
+
+    note_sources = [
+        # Oil Prices & Market Backdrop
+        ('1', 'CNBC (oil prices Mar 8)',
+         'https://www.cnbc.com/2026/03/08/crude-oil-prices-today-iran-war.html',
+         'WTI $119.48 intraday high, Brent $119.50; WTI +35% last week (largest weekly gain in futures history '
+         'since 1983); WTI crossing $100 for first time since 2022; Gulf Arab states cutting production; Iraq '
+         'output down ~60%'),
+        ('2', 'CNBC (oil prices Mar 6)',
+         'https://www.cnbc.com/2026/03/06/iran-us-war-oil-prices-brent-wti-barrel-futures.html',
+         'WTI $90.90 close Friday March 6, Brent $92.69; WTI +35.63% for the week (biggest weekly gain in '
+         'futures history dating back to 1983); Brent +28% (biggest since April 2020); Qatar energy minister '
+         'warning crude could reach $150/barrel'),
+        ('3', 'OilPrice.com (Mar 9)',
+         'https://oilprice.com/Energy/Energy-General/Oil-Prices-Soar-29-as-Iran-Conflict-Threatens-Middle-East-Supply.html',
+         'Brent $107.20 (+15.65%), WTI $103.18 (+14.26%) during Monday March 9 session; Brent intraday high '
+         '$119.50; WTI intraday high $119.48; Iraq output down ~70%; Goldman Sachs warning $140-150 if Hormuz '
+         'disrupted 30+ days; VIX highest since April 2025'),
+        ('4', 'FX Leaders (Mar 9)',
+         'https://www.fxleaders.com/news/2026/03/09/oil-price-shock-wti-and-brent-explode-past-100-as-middle-east-refineries-face-direct-hits/',
+         'WTI $119.48 intraday, Brent $119.50; today\'s trading range WTI $96.45-$119.43; 52-week range '
+         '$54.98-$119.43'),
+        ('5', 'Axios (Mar 8)',
+         'https://www.axios.com/2026/03/08/iran-war-oil-market-barrel-cost',
+         'Brent initially ~$101.81, WTI ~$101.56 Sunday evening; Brent later above $108; WTI near $120 '
+         'overnight; gasoline up from ~$3/gallon to $3.45; Rapidan Energy: disruption of 20% global oil '
+         'supply for 9 days, "more than double the previous record set during the Suez Crisis of 1956-57"'),
+
+        # Strait of Hormuz / Shipping
+        ('6', 'Euronews (Hormuz)',
+         'https://www.euronews.com/business/2026/03/05/passage-denied-oil-and-gas-prices-swing-wildly-as-hormuz-crisis-drags-on',
+         'Tanker transits collapsed from 24/day to 4/day (Vortexa data); ~200 tankers stranded; WTI ~$74.56 / '
+         'Brent ~$81.40 as of early March; Goldman Q2 Brent $76 / WTI $71 forecast (pre-escalation)'),
+        ('7', 'Kpler (Hormuz)',
+         'https://www.kpler.com/blog/us-iran-conflict-strait-of-hormuz-crisis-reshapes-global-oil-markets',
+         '~20% of global seaborne oil through Hormuz (~20.9M bbl/day); 31% of seaborne crude flows; 83% '
+         'shipping reduction; 20% of global LNG; Qatar ~75% of LNG exports through Hormuz'),
+
+        # Rates / Equities
+        ('8', 'CNBC (10Y yield)',
+         'https://www.cnbc.com/2026/03/03/10-year-treasury-yield-tops-4point06percent-as-surging-oil-prices-from-iran-conflict-raise-inflation-angst.html',
+         '10Y yield above 4%, peaked 4.117% on March 2; ISM prices paid jumped to 70.5; bond market defying '
+         'safe-haven playbook'),
+        ('9', 'CNBC (equities Mar 8)',
+         'https://www.cnbc.com/2026/03/08/stock-market-today-live-updates.html',
+         'S&P 500 down ~2% WTD; Dow -800pts Thursday; Russell 2000 off more than 4% since Feb 28; Dow futures '
+         '-512 points Sunday night; VIX topped 30'),
+        ('10', 'Motley Fool (equities)',
+         'https://www.fool.com/investing/2026/03/06/will-the-iran-war-cause-stock-market-crash-history/',
+         'S&P 500 higher 65% of the time one year after major geopolitical events, average +3% return; median '
+         '+5% six months later (Carson Group, 40+ events since WWII)'),
+
+        # Aviation / Travel
+        ('11', 'Wikipedia (economic impact)',
+         'https://en.wikipedia.org/wiki/Economic_impact_of_the_2026_Iran_war',
+         '4,000+ daily flight cancellations across Gulf state airspace; Dubai International Airport damaged and '
+         'suspended; Emirates, BA, Lufthansa, Virgin Atlantic, Air India, Cathay Pacific, Qatar Airways, Kuwait '
+         'Airways all suspended; Bahrain, Iraq, Israel, Kuwait, Qatar, Syria, UAE all closed airspace'),
+
+        # Industrial REITs
+        ('12', 'Dividend.com (industrial REITs)',
+         'https://www.dividend.com/industrial-reit-sub-industry-dividend-stocks-etfs-and-funds/',
+         'PLD $141.51 (-1.89%), EGP $192.92 (+1.20%), REXR $37.66 (+1.45%), FR $62.08 (+2.22%), STAG $39.53 '
+         '(+2.57%), TRNO $65.88 (+1.39%) -- March 6 closing prices'),
+
+        # Net Lease REITs
+        ('13', 'Macrotrends (NNN)',
+         'https://www.macrotrends.net/stocks/charts/NNN/nnn-reit/stock-price-history',
+         'NNN 52-week high $44.29, 52-week low $35.80'),
+        ('14', 'Daily Political (NNN Q4)',
+         'https://www.dailypolitical.com/2026/02/13/nnn-reit-nysennn-updates-fy-2026-earnings-guidance.html',
+         'NNN Q4 2025 FFO $0.87 vs. $0.86 estimate; record ~$900M acquisition volume; 2026 AFFO/share growth '
+         'target ~3.2%; FY2026 EPS guidance $3.470-$3.530'),
+
+        # Healthcare REITs
+        ('15', 'Investing.com (WELL)',
+         'https://www.investing.com/equities/health-care-reit-historical-data',
+         'WELL 52-week range $130.29-$209.05; today\'s range $196.03-$198.85; +37.22% over past year'),
+        ('16', 'Investing.com (WELL SWOT)',
+         'https://www.investing.com/news/swot-analysis/welltowers-swot-analysis-healthcare-reit-stock-poised-for-growth-amid-market-shifts-93CH-4277071',
+         'WELL FFO/share guidance raised to $6.01 for 2026 vs. $5.80 consensus; 2025 FFO raised from $4.95 to '
+         '$5.18 vs. $5.08 consensus; revenue growth 32% LTM'),
+        ('17', 'Stock Titan (DOC)',
+         'https://www.stocktitan.net/overview/DOC/',
+         'DOC $17.28 as of March 6; market cap ~$12.1B; Janus Living IPO (34 communities, 10,422 units) '
+         'expected H1 2026; Q4 NAREIT FFO $0.47/share, AFFO $0.40/share; Net Debt/Adj. EBITDAre 5.2x'),
+
+        # Regression Analysis
+        ('18', 'Oil_REITs_Rates_Analysis.xlsx',
+         '(This workbook)',
+         'Full sample oil coef -0.022 (p=0.567); 10Y coef -3.26 (p=0.069); 1.5 SD shock 10Y coef -14.62 '
+         '(p<0.001); oil crashes 10Y coef -10.61 (p=0.005); oil\u219210Y R\u00b2 8.3% full sample rising to '
+         '32.1% extreme shocks; n=366 monthly observations 1995-2025'),
+    ]
+
+    # Section headers for grouping
+    section_breaks = {
+        '1': 'Oil Prices & Market Backdrop',
+        '6': 'Strait of Hormuz / Shipping',
+        '8': 'Rates / Equities',
+        '11': 'Aviation / Travel (Hotels)',
+        '12': 'Industrial REITs',
+        '13': 'Net Lease REITs',
+        '15': 'Healthcare REITs',
+        '18': 'Regression Analysis',
+    }
+
+    for num, source, link, used_for in note_sources:
+        if num in section_breaks:
+            wsns.merge_cells(start_row=r, start_column=2, end_row=r, end_column=5)
+            wsns.cell(row=r, column=2, value=section_breaks[num]).font = Font(bold=True, size=11, color=DB_BLUE)
+            wsns.cell(row=r, column=2).fill = LIGHT_FILL
+            for c in range(2, 6):
+                wsns.cell(row=r, column=c).fill = LIGHT_FILL
+            r += 1
+        wsns.cell(row=r, column=2, value=int(num)).alignment = Alignment(horizontal='center')
+        wsns.cell(row=r, column=3, value=source).font = BOLD
+        if link.startswith('http'):
+            wsns.cell(row=r, column=4, value=link).font = Font(color='0563C1', underline='single')
+            wsns.cell(row=r, column=4).hyperlink = link
+        else:
+            wsns.cell(row=r, column=4, value=link).font = Font(italic=True, color='888888')
+        wsns.cell(row=r, column=5, value=used_for).alignment = Alignment(wrap_text=True)
+        wsns.row_dimensions[r].height = max(40, len(used_for) // 60 * 16 + 20)
+        for c in range(2, 6):
+            wsns.cell(row=r, column=c).border = THIN_BORDER
+        r += 1
+
+    # ==================================================================
+    # TAB 10: CHARTS
     # ==================================================================
     ws6 = wb.create_sheet('Charts')
-    ws6.sheet_properties.tabColor = '7030A0'
 
     # Chart 1: Oil vs REIT excess
     c1 = ScatterChart()
@@ -1080,6 +1201,42 @@ def build_excel(data, regressions):
     c4.y_axis.crosses = 'min'
     c4 += c4b
     ws6.add_chart(c4, 'L18')
+
+    # ==================================================================
+    # TAB 11: SAKS CLOSURES
+    # ==================================================================
+    import openpyxl as _opx
+    import os as _os
+    saks_path = _os.path.join(_os.path.dirname(__file__), 'Saks_Closures_Landlord_Exposure.xlsx')
+    if _os.path.exists(saks_path):
+        src = _opx.load_workbook(saks_path)
+        src_ws = src.active
+        ws_saks = wb.create_sheet('Saks Closures')
+        for r_idx in range(1, src_ws.max_row + 1):
+            for c_idx in range(1, src_ws.max_column + 1):
+                src_cell = src_ws.cell(r_idx, c_idx)
+                dst_cell = ws_saks.cell(r_idx, c_idx, value=src_cell.value)
+                # Copy key formatting
+                if src_cell.font:
+                    dst_cell.font = src_cell.font.copy()
+                if src_cell.fill and src_cell.fill.fgColor and src_cell.fill.fgColor.rgb and src_cell.fill.fgColor.rgb != '00000000':
+                    dst_cell.fill = src_cell.fill.copy()
+                if src_cell.alignment:
+                    dst_cell.alignment = src_cell.alignment.copy()
+                if src_cell.border:
+                    dst_cell.border = src_cell.border.copy()
+                if src_cell.number_format:
+                    dst_cell.number_format = src_cell.number_format
+        # Copy column widths
+        for col_letter, dim in src_ws.column_dimensions.items():
+            ws_saks.column_dimensions[col_letter].width = dim.width
+        # Copy merged cells
+        for merged in src_ws.merged_cells.ranges:
+            ws_saks.merge_cells(str(merged))
+        # Copy row heights
+        for r_idx, dim in src_ws.row_dimensions.items():
+            if dim.height:
+                ws_saks.row_dimensions[r_idx].height = dim.height
 
     buf = io.BytesIO()
     wb.save(buf)

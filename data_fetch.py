@@ -58,11 +58,18 @@ def fetch_all():
             return df['Close'].iloc[:, 0]
         return df['Close']
 
-    # Splice RMZ + IYR
+    # Splice RMZ + IYR (level-adjusted so no fake return at splice point)
     rmz_close = extract_close(rmz)
     iyr_close = extract_close(iyr)
     iyr_start = iyr_close.index[0]
-    reit_close = pd.concat([rmz_close[rmz_close.index < iyr_start], iyr_close]).sort_index()
+    # Find the last RMZ price on or before IYR's first date to compute scale factor
+    rmz_before = rmz_close[rmz_close.index <= iyr_start]
+    if len(rmz_before) > 0:
+        scale = float(rmz_before.iloc[-1]) / float(iyr_close.iloc[0])
+        iyr_scaled = iyr_close * scale
+    else:
+        iyr_scaled = iyr_close
+    reit_close = pd.concat([rmz_close[rmz_close.index < iyr_start], iyr_scaled]).sort_index()
     reit_close = reit_close[~reit_close.index.duplicated(keep='last')]
 
     reit_monthly = reit_close.resample('ME').last()
@@ -125,6 +132,10 @@ def run_regressions(data):
     df_w2['oil_down'] = df_w2['oil_chg'].clip(upper=0)
     X = sm.add_constant(df_w2[['oil_up', 'oil_down', 'd_t3m', 'd_t10y']])
     results['reit_m3'] = sm.OLS(df_w2['excess_ret'], X).fit(cov_type='HC1')
+
+    # Full sample HC1 model (same spec as shock regressions, for apples-to-apples comparison)
+    X = sm.add_constant(df[['oil_chg', 'd_t3m', 'd_t10y']])
+    results['reit_full_hc1'] = sm.OLS(df['excess_ret'], X).fit(cov_type='HC1')
 
     # Models for Excel LINEST cross-check (no HC1 — LINEST uses standard OLS SEs)
     X = sm.add_constant(df[['oil_chg', 'd_t3m', 'd_t10y']])

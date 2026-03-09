@@ -7,11 +7,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
         :root {
-            --blue: #2F5496;
-            --blue-light: #D6E4F0;
-            --red: #C00000;
-            --green: #27ae60;
-            --gold: #BF8F00;
+            --blue: #0018A8;
+            --blue-light: #E8EDF2;
+            --red: #0018A8;
+            --green: #0018A8;
+            --gold: #0018A8;
             --gray: #666;
             --bg: #f8f9fa;
         }
@@ -46,7 +46,7 @@
             margin: 20px 0 30px;
             transition: background 0.2s;
         }
-        .download-btn:hover { background: #219a52; }
+        .download-btn:hover { background: #001580; }
         .download-note { color: var(--gray); font-size: 0.85rem; margin-top: -20px; margin-bottom: 24px; }
 
         .section {
@@ -65,8 +65,8 @@
         }
 
         .finding {
-            background: #fdf6e3;
-            border-left: 4px solid var(--gold);
+            background: var(--blue-light);
+            border-left: 4px solid var(--blue);
             padding: 16px 20px;
             margin: 16px 0;
             border-radius: 0 6px 6px 0;
@@ -176,6 +176,13 @@
         <div class="finding">
             <p><strong>Oil does push rates around (a little).</strong> Big oil moves tend to nudge the 10-year rate in the same direction &mdash; likely through inflation expectations &mdash; but it's a noisy relationship.</p>
         </div>
+    </div>
+
+    <!-- TRANSMISSION CHAIN CHART -->
+    <div class="section">
+        <h2>The Transmission Chain</h2>
+        <p style="color: var(--gray); margin-bottom: 16px;">Oil shocks don't hit REITs directly. The effect runs through interest rates: Oil moves &rarr; 10Y yield moves &rarr; REITs react.</p>
+        <img src="{{ url_for('static', filename='images/transmission_chain_nodot.png') }}" alt="Oil Shocks to 10Y Yield (Step 1) and 10Y Yield to REIT Excess Return (Step 2)" style="width: 100%; max-width: 960px; display: block; margin: 0 auto; border-radius: 6px; border: 1px solid #e0e0e0;">
     </div>
 
     <!-- CHARTS -->
@@ -450,7 +457,7 @@ new Chart(document.getElementById('chart1'), {
     data: {
         datasets: [{
             data: D.oil_chg.map((x, i) => ({ x, y: D.excess_ret[i] })),
-            backgroundColor: 'rgba(47, 84, 150, 0.3)',
+            backgroundColor: 'rgba(0, 24, 168, 0.3)',
             pointRadius: 3,
         }]
     },
@@ -469,7 +476,7 @@ new Chart(document.getElementById('chart2'), {
     data: {
         datasets: [{
             data: D.d_t10y.map((x, i) => ({ x, y: D.excess_ret[i] })),
-            backgroundColor: 'rgba(192, 0, 0, 0.3)',
+            backgroundColor: 'rgba(0, 24, 168, 0.3)',
             pointRadius: 3,
         }]
     },
@@ -488,7 +495,7 @@ new Chart(document.getElementById('chart3'), {
     data: {
         datasets: [{
             data: D.oil_chg.map((x, i) => ({ x, y: D.d_t10y[i] })),
-            backgroundColor: 'rgba(191, 143, 0, 0.3)',
+            backgroundColor: 'rgba(0, 24, 168, 0.3)',
             pointRadius: 3,
         }]
     },
@@ -509,8 +516,8 @@ new Chart(document.getElementById('chart4'), {
         labels: labels4,
         datasets: [{
             data: D.rolling_excess,
-            borderColor: 'rgba(47, 84, 150, 0.8)',
-            backgroundColor: 'rgba(47, 84, 150, 0.15)',
+            borderColor: 'rgba(0, 24, 168, 0.8)',
+            backgroundColor: 'rgba(0, 24, 168, 0.15)',
             fill: 'origin',
             pointRadius: 0,
             borderWidth: 2,
@@ -563,14 +570,14 @@ new Chart(document.getElementById('chart6'), {
             {
                 label: '10Y Treasury',
                 data: D.t10y,
-                borderColor: 'rgba(192, 0, 0, 0.8)',
+                borderColor: 'rgba(0, 24, 168, 0.8)',
                 pointRadius: 0,
                 borderWidth: 1.5,
             },
             {
                 label: '3M T-Bill',
                 data: D.t3m,
-                borderColor: 'rgba(47, 84, 150, 0.8)',
+                borderColor: 'rgba(0, 24, 168, 0.35)',
                 pointRadius: 0,
                 borderWidth: 1.5,
             }
