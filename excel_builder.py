@@ -321,34 +321,64 @@ def build_excel(data, regressions):
     wsf.cell(row=r, column=2, value='Key Findings: Oil, REITs & Interest Rates').font = Font(bold=True, size=16, color=DB_BLUE)
     r += 2
 
+    # Compute summary stats from detected shocks for findings text
+    n_episodes = len(detected_shocks)
+    if detected_shocks:
+        excess_rets = [s.get('excess_ret', 0) for s in detected_shocks if s.get('excess_ret') is not None]
+        avg_excess = sum(excess_rets) / len(excess_rets) if excess_rets else 0
+        pos_excess = sum(1 for e in excess_rets if e > 0)
+        neg_excess = sum(1 for e in excess_rets if e < 0)
+        avg_oil = sum(s['pct_change'] for s in detected_shocks) / n_episodes
+        avg_d10y = sum(s.get('d_t10y', 0) for s in detected_shocks) / n_episodes
+    else:
+        avg_excess = avg_oil = avg_d10y = 0
+        pos_excess = neg_excess = 0
+
+    post_shock_avg = regressions.get('_post_shock_avg', {})
+
     findings = [
-        ("1. Oil doesn't directly move REITs vs S&P -- even during shocks.",
-         "Across every definition of 'oil shock' (1 SD moves, >10% swings, historical crisis windows), "
-         "the oil coefficient on REIT excess returns is statistically insignificant. Oil spikes and crashes "
-         "hit REITs and the S&P roughly equally."),
+        ("1. Oil shocks don't consistently help or hurt REITs vs the S&P.",
+         f"Across {n_episodes} auto-detected oil shock episodes (3-month trailing change >30%), "
+         f"REITs outperformed in {pos_excess} and underperformed in {neg_excess}. "
+         f"The average trough-to-peak excess return is {avg_excess:+.1f}%, "
+         "meaning oil shocks move REITs and the S&P by roughly equal amounts. "
+         "There is no reliable directional edge."),
 
         ("2. Long-term rates are what actually drive the wedge.",
          "A 1 percentage point rise in the 10Y yield in a given month is associated with ~5% REIT "
-         "underperformance vs the S&P (p<0.001). REITs behave like long-duration bonds."),
+         "underperformance vs the S&P (p<0.001). REITs behave like long-duration bonds. "
+         "This relationship holds in the full monthly regression and is the single strongest predictor."),
 
-        ("3. Oil's effect on rates gets stronger during shocks.",
-         "Full sample: oil->10Y R-sq = 8.3%. Shock months (1 SD): R-sq = 18.1%. "
-         "Extreme shocks (1.5 SD): R-sq = 32.1%. The bigger the oil move, the more it pushes the "
-         "10-year rate -- likely through inflation expectations."),
-
-        ("4. Oil crashes and spikes work differently.",
-         "Oil crashes (<-10%): The 10Y rate effect on REITs becomes highly significant (p<0.01). "
-         "Oil crashes pull rates down, which helps REITs relative to the S&P. The oil->3M rate "
-         "relationship also strengthens (p=0.02), suggesting the Fed responds to oil-driven deflation risk.\n\n"
-         "Oil spikes (>10%): Noisy -- nothing is significant. REITs underperform by -2.3% on average "
-         "during spike months, but the regression can't attribute it cleanly to oil or rates."),
-
-        ("5. The transmission chain is indirect.",
-         "Oil shock -> inflation expectations -> rates move -> REITs react to rates. "
-         "The direct oil->REIT channel is basically zero. The oil->rates->REITs chain is real "
-         "but only explains ~6% of monthly variation. Most REIT vs S&P performance comes from "
+        ("3. The transmission chain is indirect: Oil -> Rates -> REITs.",
+         f"During shock episodes, the 10Y yield moves by an average of {avg_d10y:+.3f} pp. "
+         "Oil doesn't hit REITs directly -- it works through inflation expectations and rate moves. "
+         "The direct oil->REIT channel is basically zero. Most REIT vs S&P performance comes from "
          "other factors (sector rotation, cap rates, property fundamentals)."),
+
+        ("4. Oil shocks are asymmetric but the REIT impact isn't.",
+         f"The average oil shock is +{avg_oil:.0f}% trough-to-peak, but REIT excess returns "
+         "range widely from episode to episode. Some of the largest oil spikes (e.g. 2020 COVID rebound "
+         "at +255%) saw REITs trail the S&P, while moderate spikes often saw REITs outperform. "
+         "The size of the oil move does not predict whether REITs win or lose."),
     ]
+
+    # Add post-shock recovery finding if data available
+    if post_shock_avg:
+        ps_3m = post_shock_avg.get('3M', {})
+        ps_6m = post_shock_avg.get('6M', {})
+        ps_12m = post_shock_avg.get('12M', {})
+        recovery_text = (
+            f"In the 3 months after an oil shock peak, REITs return {ps_3m.get('reit_ret', 'N/A')}% on average "
+            f"vs {ps_3m.get('spx_ret', 'N/A')}% for the S&P (excess: {ps_3m.get('excess_ret', 'N/A')}%). "
+            f"At 6 months: REIT {ps_6m.get('reit_ret', 'N/A')}% vs S&P {ps_6m.get('spx_ret', 'N/A')}% "
+            f"(excess: {ps_6m.get('excess_ret', 'N/A')}%). "
+            f"At 12 months: REIT {ps_12m.get('reit_ret', 'N/A')}% vs S&P {ps_12m.get('spx_ret', 'N/A')}% "
+            f"(excess: {ps_12m.get('excess_ret', 'N/A')}%). "
+            "Oil tends to give back gains post-peak "
+            f"({ps_3m.get('oil_chg', 'N/A')}% at 3M, {ps_12m.get('oil_chg', 'N/A')}% at 12M), "
+            "but this reversal doesn't reliably benefit REITs over the S&P."
+        )
+        findings.append(("5. Post-shock recovery: REITs don't consistently catch up.", recovery_text))
 
     for title, body in findings:
         wsf.cell(row=r, column=2, value=title).font = Font(bold=True, size=12, color=DB_BLUE)
@@ -360,7 +390,7 @@ def build_excel(data, regressions):
         r += 2
 
     r += 1
-    wsf.cell(row=r, column=2, value='Supporting Evidence: Trough-to-Peak (from Shock Periods tab)').font = Font(bold=True, size=13, color=DB_BLUE)
+    wsf.cell(row=r, column=2, value='Supporting Evidence: Trough-to-Peak Returns by Episode').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
 
     ep_headers = ['Episode', 'Oil % Chg', 'REIT Ret %', 'S&P Ret %', 'Excess %', '10Y Chg (pp)']
@@ -383,6 +413,36 @@ def build_excel(data, regressions):
         for c in range(2, 8):
             wsf.cell(row=r, column=c).border = THIN_BORDER
         r += 1
+
+    # Post-shock recovery summary on Key Findings tab
+    if post_shock_avg:
+        r += 2
+        wsf.cell(row=r, column=2, value='Post-Shock Recovery: Average Cumulative Returns After Oil Peak').font = Font(bold=True, size=13, color=DB_BLUE)
+        r += 1
+        ps_headers = ['Horizon', 'N', 'REIT %', 'S&P %', 'Excess %', 'Oil %', '\u039410Y (pp)', '\u03943M (pp)']
+        _header_row(wsf, r, [''] + ps_headers)
+        r += 1
+        for h_label in ['3M', '6M', '12M']:
+            a = post_shock_avg.get(h_label, {})
+            if a:
+                wsf.cell(row=r, column=2, value=h_label).font = BOLD
+                wsf.cell(row=r, column=3, value=a.get('n', '')).number_format = '0'
+                wsf.cell(row=r, column=4, value=a.get('reit_ret', '')).number_format = '0.00'
+                wsf.cell(row=r, column=5, value=a.get('spx_ret', '')).number_format = '0.00'
+                ex_val = a.get('excess_ret', '')
+                c_ex = wsf.cell(row=r, column=6, value=ex_val)
+                c_ex.number_format = '0.00'
+                if isinstance(ex_val, (int, float)):
+                    if ex_val > 0:
+                        c_ex.font = Font(bold=True, color='336633')
+                    elif ex_val < 0:
+                        c_ex.font = Font(bold=True, color='CC0000')
+                wsf.cell(row=r, column=7, value=a.get('oil_chg', '')).number_format = '0.00'
+                wsf.cell(row=r, column=8, value=a.get('d_t10y', '')).number_format = '0.000'
+                wsf.cell(row=r, column=9, value=a.get('d_t3m', '')).number_format = '0.000'
+                for c in range(2, 10):
+                    wsf.cell(row=r, column=c).border = THIN_BORDER
+                r += 1
 
     # ==================================================================
     # TAB 7: SOURCES
