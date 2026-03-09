@@ -74,53 +74,16 @@ def index():
 
     desc = df[['oil_chg', 'reit_ret', 'spx_ret', 'excess_ret', 't3m', 't10y']].describe().round(3)
 
-    # Shock comparison data for the template
-    shock_results = regs.get('_shock_results', {})
-    shock_counts = regs.get('_shock_counts', {})
-    oil_std = regs.get('_oil_std', 0)
-
-    shock_comparison = []
-    ordered = ['1 SD (|oil| > 1 std dev)', '1.5 SD (|oil| > 1.5 std dev)',
-               'Top/Bottom 10%', 'Big move (|chg| > 10%)',
-               'Oil spike (>10%)', 'Oil crash (<-10%)',
-               'Any historical window', 'Calm months (|oil| < 1 SD)']
-    for label in ordered:
-        sr = shock_results.get(label)
-        row = {'label': label, 'n': shock_counts.get(label, 0)}
-        if sr and 'reit' in sr:
-            m = sr['reit']
-            row['r2'] = f"{m.rsquared:.4f}"
-            row['oil_coef'] = f"{m.params['oil_chg']:.4f}"
-            row['oil_t'] = f"{m.tvalues['oil_chg']:.3f}"
-            row['oil_p'] = f"{m.pvalues['oil_chg']:.4f}"
-            row['oil_sig'] = '***' if m.pvalues['oil_chg'] < 0.01 else '**' if m.pvalues['oil_chg'] < 0.05 else '*' if m.pvalues['oil_chg'] < 0.1 else ''
-            row['t10y_coef'] = f"{m.params['d_t10y']:.4f}"
-            row['t10y_t'] = f"{m.tvalues['d_t10y']:.3f}"
-            row['t10y_p'] = f"{m.pvalues['d_t10y']:.4f}"
-            row['t10y_sig'] = '***' if m.pvalues['d_t10y'] < 0.01 else '**' if m.pvalues['d_t10y'] < 0.05 else '*' if m.pvalues['d_t10y'] < 0.1 else ''
-        else:
-            row['r2'] = 'N/A'
-        shock_comparison.append(row)
-
-    shock_t10y = []
-    for label in ordered:
-        sr = shock_results.get(label)
-        row = {'label': label, 'n': shock_counts.get(label, 0)}
-        if sr and 't10y' in sr:
-            m = sr['t10y']
-            row['r2'] = f"{m.rsquared:.4f}"
-            row['oil_coef'] = f"{m.params['oil_chg']:.4f}"
-            row['oil_t'] = f"{m.tvalues['oil_chg']:.3f}"
-            row['oil_p'] = f"{m.pvalues['oil_chg']:.4f}"
-            row['oil_sig'] = '***' if m.pvalues['oil_chg'] < 0.01 else '**' if m.pvalues['oil_chg'] < 0.05 else '*' if m.pvalues['oil_chg'] < 0.1 else ''
-        else:
-            row['r2'] = 'N/A'
-        shock_t10y.append(row)
+    # Shock episode data for the template
+    detected_shocks = regs.get('_detected_shocks', [])
+    post_shock = regs.get('_post_shock', [])
+    post_shock_avg = regs.get('_post_shock_avg', {})
 
     # Chart data as JSON for Chart.js
     chart_data = {
         'dates': [d.strftime('%Y-%m') for d in df.index],
         'oil_chg': [round(float(v), 2) for v in df['oil_chg']],
+        'oil_3m_chg': [round(float(v), 2) for v in df['oil_3m_chg']],
         'excess_ret': [round(float(v), 2) for v in df['excess_ret']],
         'd_t10y': [round(float(v), 3) for v in df['d_t10y']],
         'd_t3m': [round(float(v), 3) for v in df['d_t3m']],
@@ -136,9 +99,9 @@ def index():
                            reit_regs=reit_regs,
                            oil_regs=oil_regs,
                            desc=desc,
-                           shock_comparison=shock_comparison,
-                           shock_t10y=shock_t10y,
-                           oil_std=round(oil_std, 1),
+                           detected_shocks=detected_shocks,
+                           post_shock=post_shock,
+                           post_shock_avg=post_shock_avg,
                            chart_data=json.dumps(chart_data))
 
 

@@ -126,152 +126,122 @@ def _write_reg_block(ws, start_row, title, model, include_linest=False, linest_b
 
 def build_excel(data, regressions):
     wb = Workbook()
-    df = data['df']
-    n = len(df)
-    last_row = n + 1
+    df_daily = data['df_daily']
+    detected_shocks = regressions.get('_detected_shocks', [])
 
-    shock_defs = regressions.get('_shock_defs', {})
-    historical_shocks = regressions.get('_historical_shocks', {})
-    oil_std = regressions.get('_oil_std', df['oil_chg'].std())
-    shock_results = regressions.get('_shock_results', {})
-    shock_counts = regressions.get('_shock_counts', {})
+    # Also keep monthly df for regressions/correlations tabs
+    df = data['df']
+    n_monthly = len(df)
+    monthly_last_row = n_monthly + 1
 
     # ==================================================================
-    # TAB 1: DATA
+    # TAB 1: DATA (Daily)
     # ==================================================================
     ws = wb.active
     ws.title = 'Data'
 
-    headers = ['Date', 'Oil Price', 'Oil Chg %', 'REIT Return %',
-               'S&P 500 Return %', 'REIT Excess Return %',
-               '3M Rate %', '10Y Rate %', 'Term Spread %',
-               'Chg in 3M Rate', 'Chg in 10Y Rate']
+    headers = ['Date', 'Oil Price', 'Oil 3M Chg %', 'REIT Close', 'S&P Close',
+               '3M Rate %', '10Y Rate %']
     _header_row(ws, 1, headers)
 
-    for r, (date, row) in enumerate(df.iterrows(), 2):
-        ws.cell(row=r, column=1, value=date.strftime('%Y-%m'))
+    n_daily = len(df_daily)
+    daily_last_row = n_daily + 1
+    for r, (date, row) in enumerate(df_daily.iterrows(), 2):
+        ws.cell(row=r, column=1, value=date.strftime('%Y-%m-%d'))
         ws.cell(row=r, column=2, value=round(row['oil_price'], 2))
-        ws.cell(row=r, column=3, value=round(row['oil_chg'], 2))
-        ws.cell(row=r, column=4, value=round(row['reit_ret'], 2))
-        ws.cell(row=r, column=5, value=round(row['spx_ret'], 2))
-        ws.cell(row=r, column=6, value=round(row['excess_ret'], 2))
-        ws.cell(row=r, column=7, value=round(row['t3m'], 2))
-        ws.cell(row=r, column=8, value=round(row['t10y'], 2))
-        ws.cell(row=r, column=9, value=round(row['term_spread'], 2))
-        ws.cell(row=r, column=10, value=round(row['d_t3m'], 4))
-        ws.cell(row=r, column=11, value=round(row['d_t10y'], 4))
+        ws.cell(row=r, column=3, value=round(row['oil_3m_chg'], 2) if not np.isnan(row['oil_3m_chg']) else '')
+        ws.cell(row=r, column=4, value=round(row['reit_close'], 2))
+        ws.cell(row=r, column=5, value=round(row['spx_close'], 2))
+        ws.cell(row=r, column=6, value=round(row['t3m'], 2))
+        ws.cell(row=r, column=7, value=round(row['t10y'], 2))
 
     _auto_width(ws)
     ws.freeze_panes = 'A2'
 
     def drange(col_letter):
-        return f"Data!{col_letter}2:{col_letter}{last_row}"
+        """Column range for the monthly data tab."""
+        return f"'Monthly Data'!{col_letter}2:{col_letter}{monthly_last_row}"
 
     # ==================================================================
-    # TAB 2: SHOCK PERIODS
+    # TAB 2: SHOCK PERIODS (Trough-to-Peak using daily data)
     # ==================================================================
     ws2 = wb.create_sheet('Shock Periods')
 
-    ws2.cell(row=1, column=1, value='Oil Shock Period Identification').font = Font(bold=True, size=14, color=DB_BLUE)
-    ws2.cell(row=2, column=1, value=f'1 Std Dev of monthly oil change = {oil_std:.1f}%. Months highlighted in pink are shock months.').font = ITALIC_GRAY
+    ws2.cell(row=1, column=1, value='Oil Shock Episodes: Trough-to-Peak Analysis').font = Font(bold=True, size=14, color=DB_BLUE)
+    ws2.cell(row=2, column=1, value='Auto-detected from daily data: 3-month trailing oil price change > 30%. Returns computed using exact daily prices.').font = ITALIC_GRAY
 
-    # Monthly shock flags
     r = 4
-    flag_headers = ['Date', 'Oil Chg %', '|Oil Chg| > 1 SD', '>1.5 SD', '|Chg| > 10%',
-                    'Spike (>10%)', 'Crash (<-10%)', 'Historical Window']
-    _header_row(ws2, r, flag_headers)
+    ep_headers = ['Episode', 'Trough Date', 'Peak Date', 'Trading Days',
+                   'Oil Trough', 'Oil Peak', 'Oil % Chg',
+                   'REIT Ret %', 'S&P Ret %', 'Excess Ret %',
+                   '10Y Chg (pp)', '3M Chg (pp)']
+    _header_row(ws2, r, ep_headers)
     r += 1
-
-    shock_1sd = df['oil_chg'].abs() > oil_std
-    shock_15sd = df['oil_chg'].abs() > 1.5 * oil_std
-    shock_10 = df['oil_chg'].abs() > 10
-    spike_10 = df['oil_chg'] > 10
-    crash_10 = df['oil_chg'] < -10
-    any_hist = shock_defs.get('Any historical window', pd.Series(False, index=df.index))
-
-    for date, row in df.iterrows():
-        dt = date.strftime('%Y-%m')
-        oil = row['oil_chg']
-        is_1sd = abs(oil) > oil_std
-        is_15sd = abs(oil) > 1.5 * oil_std
-        is_10 = abs(oil) > 10
-        is_spike = oil > 10
-        is_crash = oil < -10
-        is_hist = bool(any_hist.get(date, False))
-
-        ws2.cell(row=r, column=1, value=dt)
-        ws2.cell(row=r, column=2, value=round(oil, 2)).number_format = '0.00'
-        ws2.cell(row=r, column=3, value='YES' if is_1sd else '')
-        ws2.cell(row=r, column=4, value='YES' if is_15sd else '')
-        ws2.cell(row=r, column=5, value='YES' if is_10 else '')
-        ws2.cell(row=r, column=6, value='YES' if is_spike else '')
-        ws2.cell(row=r, column=7, value='YES' if is_crash else '')
-        ws2.cell(row=r, column=8, value='YES' if is_hist else '')
-
-        if is_1sd:
-            for c in range(1, 9):
-                ws2.cell(row=r, column=c).fill = SHOCK_FILL
-        r += 1
-
-    # Historical shock windows list
-    r += 2
-    ws2.cell(row=r, column=1, value='Historical Shock Windows').font = Font(bold=True, size=13, color=DB_BLUE)
-    r += 1
-    _header_row(ws2, r, ['Period', 'Start', 'End', 'Months', 'Avg Oil Chg %',
-                          'Avg REIT Excess %', 'Avg 10Y Chg (pp)',
-                          'Cumulative Oil %', 'Cumulative REIT %', 'Cumulative S&P %', 'Cumulative Excess %', 'Cumulative 10Y (pp)'])
-    r += 1
-    for label, (start, end) in historical_shocks.items():
-        mask = (df.index >= start) & (df.index <= end)
-        sub = df[mask]
-        if len(sub) == 0:
-            continue
-        ws2.cell(row=r, column=1, value=label)
-        ws2.cell(row=r, column=2, value=start)
-        ws2.cell(row=r, column=3, value=end)
-        ws2.cell(row=r, column=4, value=len(sub))
-        ws2.cell(row=r, column=5, value=round(float(sub['oil_chg'].mean()), 1))
-        ws2.cell(row=r, column=6, value=round(float(sub['excess_ret'].mean()), 2))
-        ws2.cell(row=r, column=7, value=round(float(sub['d_t10y'].mean()), 3))
-        # Cumulative columns
-        cum_oil = ((1 + sub['oil_chg'] / 100).prod() - 1) * 100
-        cum_reit = ((1 + sub['reit_ret'] / 100).prod() - 1) * 100
-        cum_spx = ((1 + sub['spx_ret'] / 100).prod() - 1) * 100
-        cum_excess = cum_reit - cum_spx
-        cum_10y = sub['d_t10y'].sum()
-        ws2.cell(row=r, column=8, value=round(float(cum_oil), 1)).number_format = '0.0'
-        ws2.cell(row=r, column=9, value=round(float(cum_reit), 1)).number_format = '0.0'
-        ws2.cell(row=r, column=10, value=round(float(cum_spx), 1)).number_format = '0.0'
-        c_ex = ws2.cell(row=r, column=11, value=round(float(cum_excess), 1))
-        c_ex.number_format = '0.0'
-        if cum_excess > 0:
-            c_ex.font = Font(bold=True, color='336633')
-        elif cum_excess < 0:
-            c_ex.font = Font(bold=True, color='CC0000')
-        ws2.cell(row=r, column=12, value=round(float(cum_10y), 3)).number_format = '0.000'
+    for shock in detected_shocks:
+        ws2.cell(row=r, column=1, value=shock['label']).font = BOLD
+        ws2.cell(row=r, column=2, value=shock['start_date'])
+        ws2.cell(row=r, column=3, value=shock['end_date'])
+        ws2.cell(row=r, column=4, value=shock.get('trading_days', ''))
+        ws2.cell(row=r, column=5, value=shock['trough_price']).number_format = '0.00'
+        ws2.cell(row=r, column=6, value=shock['peak_price']).number_format = '0.00'
+        ws2.cell(row=r, column=7, value=shock['pct_change']).number_format = '0.0'
+        ws2.cell(row=r, column=8, value=shock.get('reit_ret', '')).number_format = '0.00'
+        ws2.cell(row=r, column=9, value=shock.get('spx_ret', '')).number_format = '0.00'
+        excess = shock.get('excess_ret', '')
+        c_ex = ws2.cell(row=r, column=10, value=excess)
+        c_ex.number_format = '0.00'
+        if isinstance(excess, (int, float)):
+            if excess > 0:
+                c_ex.font = Font(bold=True, color='336633')
+            elif excess < 0:
+                c_ex.font = Font(bold=True, color='CC0000')
+        ws2.cell(row=r, column=11, value=shock.get('d_t10y', '')).number_format = '0.000'
+        ws2.cell(row=r, column=12, value=shock.get('d_t3m', '')).number_format = '0.000'
         for c in range(1, 13):
             ws2.cell(row=r, column=c).border = THIN_BORDER
         r += 1
 
-    # Shock definition counts
-    r += 2
-    ws2.cell(row=r, column=1, value='Shock Definition Summary').font = Font(bold=True, size=13, color=DB_BLUE)
+    # Averages row
     r += 1
-    _header_row(ws2, r, ['Definition', 'Months', '% of Sample'])
-    r += 1
-    for label, count in shock_counts.items():
-        ws2.cell(row=r, column=1, value=label)
-        ws2.cell(row=r, column=2, value=count)
-        ws2.cell(row=r, column=3, value=round(count / n * 100, 1))
-        ws2.cell(row=r, column=3).number_format = '0.0'
-        for c in range(1, 4):
-            ws2.cell(row=r, column=c).border = THIN_BORDER
-        r += 1
+    ws2.cell(row=r, column=1, value='AVERAGE').font = Font(bold=True, color=DB_BLUE)
+    for ci, key in [(4, 'trading_days'), (7, 'pct_change'), (8, 'reit_ret'), (9, 'spx_ret'),
+                     (10, 'excess_ret'), (11, 'd_t10y'), (12, 'd_t3m')]:
+        vals = [s.get(key) for s in detected_shocks if s.get(key) is not None and isinstance(s.get(key), (int, float))]
+        if vals:
+            avg = round(np.mean(vals), 2 if ci != 4 else 0)
+            ws2.cell(row=r, column=ci, value=avg)
+    for c in range(1, 13):
+        ws2.cell(row=r, column=c).fill = LIGHT_FILL
+        ws2.cell(row=r, column=c).border = THIN_BORDER
 
     _auto_width(ws2)
 
     # ==================================================================
-    # TAB 3: CORRELATIONS (CORREL formulas)
+    # TAB 3: MONTHLY DATA (for correlations/LINEST references)
+    # ==================================================================
+    wsm = wb.create_sheet('Monthly Data')
+    m_headers = ['Date', 'Oil Price', 'Oil Chg %', 'REIT Return %',
+                 'S&P 500 Return %', 'REIT Excess Return %',
+                 '3M Rate %', '10Y Rate %', 'Term Spread %',
+                 'Chg in 3M Rate', 'Chg in 10Y Rate']
+    _header_row(wsm, 1, m_headers)
+    for r_i, (date, row) in enumerate(df.iterrows(), 2):
+        wsm.cell(row=r_i, column=1, value=date.strftime('%Y-%m'))
+        wsm.cell(row=r_i, column=2, value=round(row['oil_price'], 2))
+        wsm.cell(row=r_i, column=3, value=round(row['oil_chg'], 2))
+        wsm.cell(row=r_i, column=4, value=round(row['reit_ret'], 2))
+        wsm.cell(row=r_i, column=5, value=round(row['spx_ret'], 2))
+        wsm.cell(row=r_i, column=6, value=round(row['excess_ret'], 2))
+        wsm.cell(row=r_i, column=7, value=round(row['t3m'], 2))
+        wsm.cell(row=r_i, column=8, value=round(row['t10y'], 2))
+        wsm.cell(row=r_i, column=9, value=round(row['term_spread'], 2))
+        wsm.cell(row=r_i, column=10, value=round(row['d_t3m'], 4))
+        wsm.cell(row=r_i, column=11, value=round(row['d_t10y'], 4))
+    _auto_width(wsm)
+    wsm.freeze_panes = 'A2'
+
+    # ==================================================================
+    # TAB 4: CORRELATIONS (CORREL formulas)
     # ==================================================================
     ws3 = wb.create_sheet('Correlations')
 
@@ -324,9 +294,8 @@ def build_excel(data, regressions):
                          regressions['t3m_on_oil_ols'],
                          include_linest=True, linest_base=linest_3m)
 
-    linest_oil = f'LINEST({drange("C")},{drange("J")}:{drange("K").split("!")[1]},TRUE,TRUE)'
     # Adjacent cols J,K so simpler
-    linest_oil = f'LINEST({drange("C")},Data!J2:K{last_row},TRUE,TRUE)'
+    linest_oil = f'LINEST({drange("C")},"Monthly Data"!J2:K{monthly_last_row},TRUE,TRUE)'
     r = _write_reg_block(ws4, r, 'Oil Change ~ Rate Changes',
                          regressions['oil_rates_changes_ols'],
                          include_linest=True, linest_base=linest_oil)
@@ -339,145 +308,7 @@ def build_excel(data, regressions):
 
     _auto_width(ws4)
 
-    # ==================================================================
-    # TAB 5: SHOCK REGRESSIONS
-    # ==================================================================
-    ws5 = wb.create_sheet('Shock Regressions')
-
-    r = 1
-    ws5.cell(row=r, column=1, value='Regressions During Oil Shock Periods').font = Font(bold=True, size=14, color=DB_BLUE)
-    r += 1
-    ws5.cell(row=r, column=1, value='Same models as Full Sample tab, but restricted to shock months only. *** p<0.01  ** p<0.05  * p<0.1').font = ITALIC_GRAY
-    r += 2
-
-    # Comparison table: all shock defs side by side for the REIT regression
-    ws5.cell(row=r, column=1, value='REIT Excess Return ~ Oil + Rate Changes: Shock vs Full Sample').font = Font(bold=True, size=13, color=DB_BLUE)
-    r += 1
-
-    comp_headers = ['Shock Definition', 'N', 'R-sq',
-                    'Oil Coef', 'Oil t-stat', 'Oil p-val',
-                    'd_10Y Coef', 'd_10Y t-stat', 'd_10Y p-val',
-                    'd_3M Coef', 'd_3M t-stat', 'd_3M p-val']
-    _header_row(ws5, r, comp_headers)
-    r += 1
-
-    # Full sample first (HC1 to match shock rows)
-    m_full = regressions['reit_full_hc1']
-    ws5.cell(row=r, column=1, value='FULL SAMPLE').font = Font(bold=True, color=DB_BLUE)
-    ws5.cell(row=r, column=2, value=int(m_full.nobs))
-    ws5.cell(row=r, column=3, value=round(float(m_full.rsquared), 4)).number_format = '0.0000'
-    for vi, var in enumerate(['oil_chg', 'd_t10y', 'd_t3m']):
-        base_col = 4 + vi * 3
-        ws5.cell(row=r, column=base_col, value=round(float(m_full.params[var]), 4)).number_format = '0.0000'
-        ws5.cell(row=r, column=base_col+1, value=round(float(m_full.tvalues[var]), 3)).number_format = '0.000'
-        ws5.cell(row=r, column=base_col+2, value=round(float(m_full.pvalues[var]), 4)).number_format = '0.0000'
-    for c in range(1, 13):
-        ws5.cell(row=r, column=c).border = THIN_BORDER
-        ws5.cell(row=r, column=c).fill = LIGHT_FILL
-    r += 1
-
-    # Each shock definition
-    ordered_labels = [
-        '1 SD (|oil| > 1 std dev)', '1.5 SD (|oil| > 1.5 std dev)',
-        'Top/Bottom 10%', 'Big move (|chg| > 10%)',
-        'Oil spike (>10%)', 'Oil crash (<-10%)',
-        'Any historical window', 'Calm months (|oil| < 1 SD)',
-    ]
-    for label in ordered_labels:
-        sr = shock_results.get(label)
-        if sr is None or 'reit' not in sr:
-            ws5.cell(row=r, column=1, value=label)
-            ws5.cell(row=r, column=2, value=shock_counts.get(label, '<10'))
-            ws5.cell(row=r, column=3, value='N/A (too few obs)')
-            r += 1
-            continue
-
-        m = sr['reit']
-        ws5.cell(row=r, column=1, value=label).font = BOLD
-        ws5.cell(row=r, column=2, value=int(m.nobs))
-        ws5.cell(row=r, column=3, value=round(float(m.rsquared), 4)).number_format = '0.0000'
-        for vi, var in enumerate(['oil_chg', 'd_t10y', 'd_t3m']):
-            base_col = 4 + vi * 3
-            ws5.cell(row=r, column=base_col, value=round(float(m.params[var]), 4)).number_format = '0.0000'
-            ws5.cell(row=r, column=base_col+1, value=round(float(m.tvalues[var]), 3)).number_format = '0.000'
-            pval = float(m.pvalues[var])
-            cell_p = ws5.cell(row=r, column=base_col+2, value=round(pval, 4))
-            cell_p.number_format = '0.0000'
-            if pval < 0.05:
-                cell_p.font = Font(bold=True, color=DB_BLUE)
-        for c in range(1, 13):
-            ws5.cell(row=r, column=c).border = THIN_BORDER
-        if label == 'Calm months (|oil| < 1 SD)':
-            for c in range(1, 13):
-                ws5.cell(row=r, column=c).fill = GREEN_FILL
-        r += 1
-
-    # Same comparison for Oil -> 10Y regression
-    r += 2
-    ws5.cell(row=r, column=1, value='10Y Rate Change ~ Oil Change: Shock vs Full Sample').font = Font(bold=True, size=13, color=DB_BLUE)
-    r += 1
-    comp_h2 = ['Shock Definition', 'N', 'R-sq', 'Oil Coef', 'Oil t-stat', 'Oil p-val']
-    _header_row(ws5, r, comp_h2)
-    r += 1
-
-    m_full2 = regressions['t10y_on_oil']  # HC1 to match shock rows
-    ws5.cell(row=r, column=1, value='FULL SAMPLE').font = Font(bold=True, color=DB_BLUE)
-    ws5.cell(row=r, column=2, value=int(m_full2.nobs))
-    ws5.cell(row=r, column=3, value=round(float(m_full2.rsquared), 4)).number_format = '0.0000'
-    ws5.cell(row=r, column=4, value=round(float(m_full2.params['oil_chg']), 4)).number_format = '0.0000'
-    ws5.cell(row=r, column=5, value=round(float(m_full2.tvalues['oil_chg']), 3)).number_format = '0.000'
-    ws5.cell(row=r, column=6, value=round(float(m_full2.pvalues['oil_chg']), 4)).number_format = '0.0000'
-    for c in range(1, 7):
-        ws5.cell(row=r, column=c).border = THIN_BORDER
-        ws5.cell(row=r, column=c).fill = LIGHT_FILL
-    r += 1
-
-    for label in ordered_labels:
-        sr = shock_results.get(label)
-        if sr is None or 't10y' not in sr:
-            ws5.cell(row=r, column=1, value=label)
-            ws5.cell(row=r, column=2, value=shock_counts.get(label, '<10'))
-            ws5.cell(row=r, column=3, value='N/A')
-            r += 1
-            continue
-        m = sr['t10y']
-        ws5.cell(row=r, column=1, value=label).font = BOLD
-        ws5.cell(row=r, column=2, value=int(m.nobs))
-        ws5.cell(row=r, column=3, value=round(float(m.rsquared), 4)).number_format = '0.0000'
-        ws5.cell(row=r, column=4, value=round(float(m.params['oil_chg']), 4)).number_format = '0.0000'
-        ws5.cell(row=r, column=5, value=round(float(m.tvalues['oil_chg']), 3)).number_format = '0.000'
-        pval = float(m.pvalues['oil_chg'])
-        cell_p = ws5.cell(row=r, column=6, value=round(pval, 4))
-        cell_p.number_format = '0.0000'
-        if pval < 0.05:
-            cell_p.font = Font(bold=True, color=DB_BLUE)
-        for c in range(1, 7):
-            ws5.cell(row=r, column=c).border = THIN_BORDER
-        if label == 'Calm months (|oil| < 1 SD)':
-            for c in range(1, 7):
-                ws5.cell(row=r, column=c).fill = GREEN_FILL
-        r += 1
-
-    # Full detail blocks for key shock definitions
-    r += 2
-    ws5.cell(row=r, column=1, value='Detailed Regression Output by Shock Definition').font = Font(bold=True, size=14, color=DB_BLUE)
-    r += 2
-
-    for label in ['1 SD (|oil| > 1 std dev)', '1.5 SD (|oil| > 1.5 std dev)',
-                   'Oil crash (<-10%)', 'Any historical window',
-                   'Calm months (|oil| < 1 SD)']:
-        sr = shock_results.get(label)
-        if sr is None:
-            continue
-        for reg_name, model_key, desc in [
-            ('reit', 'reit', 'REIT Excess ~ Oil + Rate Changes'),
-            ('t10y', 't10y', '10Y Change ~ Oil Change'),
-            ('t3m', 't3m', '3M Change ~ Oil Change'),
-        ]:
-            if model_key in sr:
-                r = _write_reg_block(ws5, r, f'{desc} [{label}]', sr[model_key])
-
-    _auto_width(ws5)
+    # (Shock Regressions tab removed — shock analysis is now episode-based in Shock Periods tab)
 
     # ==================================================================
     # TAB 6: KEY FINDINGS
@@ -529,73 +360,27 @@ def build_excel(data, regressions):
         r += 2
 
     r += 1
-    wsf.cell(row=r, column=2, value='Supporting Evidence (from Shock Regressions tab)').font = Font(bold=True, size=13, color=DB_BLUE)
+    wsf.cell(row=r, column=2, value='Supporting Evidence: Trough-to-Peak (from Shock Periods tab)').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
 
-    evidence = [
-        ['Metric', 'Full Sample', 'Shock (1 SD)', 'Extreme (1.5 SD)', 'Oil Crash (<-10%)'],
-    ]
-    # Pull actual numbers (HC1 to match shock regressions)
-    m_full = regressions['reit_full_hc1']
-    sr_1sd = shock_results.get('1 SD (|oil| > 1 std dev)', {})
-    sr_15sd = shock_results.get('1.5 SD (|oil| > 1.5 std dev)', {})
-    sr_crash = shock_results.get('Oil crash (<-10%)', {})
-
-    def _safe(sr, key, attr, var=None):
-        m = sr.get(key)
-        if m is None:
-            return 'N/A'
-        if var:
-            return round(float(getattr(m, attr)[var]), 4)
-        return round(float(getattr(m, attr)), 4)
-
-    evidence.append(['REIT reg: Oil coef',
-                     round(float(m_full.params['oil_chg']), 4),
-                     _safe(sr_1sd, 'reit', 'params', 'oil_chg'),
-                     _safe(sr_15sd, 'reit', 'params', 'oil_chg'),
-                     _safe(sr_crash, 'reit', 'params', 'oil_chg')])
-    evidence.append(['REIT reg: Oil p-value',
-                     round(float(m_full.pvalues['oil_chg']), 4),
-                     _safe(sr_1sd, 'reit', 'pvalues', 'oil_chg'),
-                     _safe(sr_15sd, 'reit', 'pvalues', 'oil_chg'),
-                     _safe(sr_crash, 'reit', 'pvalues', 'oil_chg')])
-    evidence.append(['REIT reg: 10Y coef',
-                     round(float(m_full.params['d_t10y']), 4),
-                     _safe(sr_1sd, 'reit', 'params', 'd_t10y'),
-                     _safe(sr_15sd, 'reit', 'params', 'd_t10y'),
-                     _safe(sr_crash, 'reit', 'params', 'd_t10y')])
-    evidence.append(['REIT reg: 10Y p-value',
-                     round(float(m_full.pvalues['d_t10y']), 4),
-                     _safe(sr_1sd, 'reit', 'pvalues', 'd_t10y'),
-                     _safe(sr_15sd, 'reit', 'pvalues', 'd_t10y'),
-                     _safe(sr_crash, 'reit', 'pvalues', 'd_t10y')])
-
-    m_full_10y = regressions['t10y_on_oil']  # HC1 to match shock rows
-    evidence.append(['Oil->10Y: R-squared',
-                     round(float(m_full_10y.rsquared), 4),
-                     _safe(sr_1sd, 't10y', 'rsquared'),
-                     _safe(sr_15sd, 't10y', 'rsquared'),
-                     _safe(sr_crash, 't10y', 'rsquared')])
-    evidence.append(['Oil->10Y: Oil p-value',
-                     round(float(m_full_10y.pvalues['oil_chg']), 4),
-                     _safe(sr_1sd, 't10y', 'pvalues', 'oil_chg'),
-                     _safe(sr_15sd, 't10y', 'pvalues', 'oil_chg'),
-                     _safe(sr_crash, 't10y', 'pvalues', 'oil_chg')])
-    evidence.append(['N months',
-                     int(m_full.nobs),
-                     shock_counts.get('1 SD (|oil| > 1 std dev)', 0),
-                     shock_counts.get('1.5 SD (|oil| > 1.5 std dev)', 0),
-                     shock_counts.get('Oil crash (<-10%)', 0)])
-
-    _header_row(wsf, r, [''] + evidence[0])
+    ep_headers = ['Episode', 'Oil % Chg', 'REIT Ret %', 'S&P Ret %', 'Excess %', '10Y Chg (pp)']
+    _header_row(wsf, r, [''] + ep_headers)
     r += 1
-    for row_data in evidence[1:]:
-        wsf.cell(row=r, column=2, value=row_data[0]).font = BOLD
-        for ci, val in enumerate(row_data[1:], 3):
-            cell = wsf.cell(row=r, column=ci, value=val)
-            if isinstance(val, float):
-                cell.number_format = '0.0000'
-        for c in range(2, 7):
+    for shock in detected_shocks:
+        wsf.cell(row=r, column=2, value=shock['label']).font = BOLD
+        wsf.cell(row=r, column=3, value=shock['pct_change']).number_format = '0.0'
+        wsf.cell(row=r, column=4, value=shock.get('reit_ret', 'N/A'))
+        wsf.cell(row=r, column=5, value=shock.get('spx_ret', 'N/A'))
+        excess = shock.get('excess_ret', 'N/A')
+        c_ex = wsf.cell(row=r, column=6, value=excess)
+        if isinstance(excess, (int, float)):
+            c_ex.number_format = '0.00'
+            if excess > 0:
+                c_ex.font = Font(bold=True, color='336633')
+            elif excess < 0:
+                c_ex.font = Font(bold=True, color='CC0000')
+        wsf.cell(row=r, column=7, value=shock.get('d_t10y', 'N/A')).number_format = '0.000'
+        for c in range(2, 8):
             wsf.cell(row=r, column=c).border = THIN_BORDER
         r += 1
 
@@ -1171,11 +956,11 @@ def build_excel(data, regressions):
     r = 1
     wsp.cell(row=r, column=1, value='Post-Shock Recovery: 3, 6, and 12 Months After Each Shock').font = Font(bold=True, size=14, color=DB_BLUE)
     r += 1
-    wsp.cell(row=r, column=1, value='How did REITs, the S&P, and rates behave after each historical oil shock ended?').font = ITALIC_GRAY
+    wsp.cell(row=r, column=1, value='How did REITs, the S&P, and rates behave after each auto-detected oil shock peak? Uses exact daily prices.').font = ITALIC_GRAY
     r += 2
 
     # Summary averages first
-    wsp.cell(row=r, column=1, value='Average Post-Shock Performance (All 7 Shocks)').font = Font(bold=True, size=13, color=DB_BLUE)
+    wsp.cell(row=r, column=1, value=f'Average Post-Shock Performance ({len(detected_shocks)} Episodes)').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
     avg_headers = ['Horizon', 'N', 'REIT Cumulative %', 'S&P Cumulative %', 'REIT Excess %', 'Oil Cumulative %', '10Y Chg (pp)', '3M Chg (pp)']
     _header_row(wsp, r, avg_headers)
@@ -1206,7 +991,7 @@ def build_excel(data, regressions):
     # Detail by shock and horizon
     wsp.cell(row=r, column=1, value='Detail by Shock Episode').font = Font(bold=True, size=13, color=DB_BLUE)
     r += 1
-    detail_headers = ['Shock Episode', 'Horizon', 'Months', 'REIT Cumulative %', 'S&P Cumulative %',
+    detail_headers = ['Shock Episode', 'Horizon', 'End Date', 'REIT Cumulative %', 'S&P Cumulative %',
                        'REIT Excess %', 'Oil Cumulative %', '10Y Chg (pp)', '3M Chg (pp)']
     _header_row(wsp, r, detail_headers)
     r += 1
@@ -1223,7 +1008,7 @@ def build_excel(data, regressions):
             wsp.cell(row=r, column=1, value='')
 
         wsp.cell(row=r, column=2, value=ps['horizon'])
-        wsp.cell(row=r, column=3, value=ps['months_actual'])
+        wsp.cell(row=r, column=3, value=ps.get('end_date', ''))
         wsp.cell(row=r, column=4, value=ps['reit_ret']).number_format = '0.00'
         wsp.cell(row=r, column=5, value=ps['spx_ret']).number_format = '0.00'
         wsp.cell(row=r, column=6, value=ps['excess_ret']).number_format = '0.00'
@@ -1259,58 +1044,62 @@ def build_excel(data, regressions):
     # ==================================================================
     ws6 = wb.create_sheet('Charts')
 
-    # Chart 1: Oil vs REIT excess
+    # Charts reference Monthly Data tab (wsm) for scatter plots
+    # Monthly Data columns: A=Date, B=Oil Price, C=Oil Chg, D=REIT Ret, E=S&P Ret,
+    #   F=Excess Ret, G=3M Rate, H=10Y Rate, I=Term Spread, J=d_3M, K=d_10Y
+
+    # Chart 1: Oil vs REIT excess (monthly: C=Oil Chg, F=Excess Ret)
     c1 = ScatterChart()
     c1.title = 'Oil Price Swings vs REIT Outperformance'
     c1.x_axis.title = 'Monthly Oil Price Move (%)'
     c1.y_axis.title = 'REIT vs S&P (%)'
     c1.width = 20
     c1.height = 14
-    s1 = Series(Reference(ws, min_col=6, min_row=2, max_row=last_row),
-                Reference(ws, min_col=3, min_row=2, max_row=last_row), title='Monthly')
+    s1 = Series(Reference(wsm, min_col=6, min_row=2, max_row=monthly_last_row),
+                Reference(wsm, min_col=3, min_row=2, max_row=monthly_last_row), title='Monthly')
     s1.graphicalProperties.noFill = True
     c1.series.append(s1)
     ws6.add_chart(c1, 'A1')
 
-    # Chart 2: 10Y change vs REIT excess
+    # Chart 2: 10Y change vs REIT excess (monthly: K=d_t10y, F=Excess)
     c2 = ScatterChart()
     c2.title = 'When Long-Term Rates Rise, REITs Underperform'
     c2.x_axis.title = '10Y Rate Change (pp)'
     c2.y_axis.title = 'REIT vs S&P (%)'
     c2.width = 20
     c2.height = 14
-    s2 = Series(Reference(ws, min_col=6, min_row=2, max_row=last_row),
-                Reference(ws, min_col=11, min_row=2, max_row=last_row), title='Monthly')
+    s2 = Series(Reference(wsm, min_col=6, min_row=2, max_row=monthly_last_row),
+                Reference(wsm, min_col=11, min_row=2, max_row=monthly_last_row), title='Monthly')
     s2.graphicalProperties.noFill = True
     c2.series.append(s2)
     ws6.add_chart(c2, 'L1')
 
-    # Chart 3: Oil vs 10Y change
+    # Chart 3: Oil vs 10Y change (monthly: C=Oil Chg, K=d_t10y)
     c3 = ScatterChart()
     c3.title = 'Oil and Long-Term Rates Move Together'
     c3.x_axis.title = 'Monthly Oil Price Move (%)'
     c3.y_axis.title = '10Y Rate Change (pp)'
     c3.width = 20
     c3.height = 14
-    s3 = Series(Reference(ws, min_col=11, min_row=2, max_row=last_row),
-                Reference(ws, min_col=3, min_row=2, max_row=last_row), title='Monthly')
+    s3 = Series(Reference(wsm, min_col=11, min_row=2, max_row=monthly_last_row),
+                Reference(wsm, min_col=3, min_row=2, max_row=monthly_last_row), title='Monthly')
     s3.graphicalProperties.noFill = True
     c3.series.append(s3)
     ws6.add_chart(c3, 'A18')
 
-    # Chart 4: Oil + 10Y over time
+    # Chart 4: Oil + 10Y over time (daily: B=Oil Price, G=10Y Rate)
     c4 = LineChart()
-    c4.title = 'Oil Price and 10Y Rate Over Time'
+    c4.title = 'Oil Price and 10Y Rate Over Time (Daily)'
     c4.y_axis.title = 'Oil Price ($/bbl)'
     c4.width = 20
     c4.height = 14
-    cats = Reference(ws, min_col=1, min_row=2, max_row=last_row)
-    c4.add_data(Reference(ws, min_col=2, min_row=1, max_row=last_row), titles_from_data=True)
+    cats = Reference(ws, min_col=1, min_row=2, max_row=daily_last_row)
+    c4.add_data(Reference(ws, min_col=2, min_row=1, max_row=daily_last_row), titles_from_data=True)
     c4.set_categories(cats)
     c4.series[0].graphicalProperties.line.width = 15000
     c4b = LineChart()
     c4b.y_axis.title = '10Y Rate (%)'
-    c4b.add_data(Reference(ws, min_col=8, min_row=1, max_row=last_row), titles_from_data=True)
+    c4b.add_data(Reference(ws, min_col=7, min_row=1, max_row=daily_last_row), titles_from_data=True)
     c4b.set_categories(cats)
     c4b.y_axis.axId = 200
     c4b.series[0].graphicalProperties.line.width = 15000

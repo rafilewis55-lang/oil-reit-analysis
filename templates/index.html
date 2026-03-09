@@ -224,6 +224,14 @@
                 <canvas id="chart6"></canvas>
             </div>
         </div>
+
+        <div class="chart-grid">
+            <div class="chart-card" style="grid-column: 1 / -1;">
+                <h3>3-Month Trailing Oil Price Change</h3>
+                <p class="subtitle">Shock threshold = 30%. Months above the red line are flagged as shock months.</p>
+                <canvas id="chart7"></canvas>
+            </div>
+        </div>
     </div>
 
     <!-- REIT REGRESSIONS -->
@@ -277,81 +285,68 @@
     <div class="section">
         <h2>What Happens During Oil Shocks?</h2>
         <p style="color: var(--gray); margin-bottom: 16px;">
-            The full sample mixes extreme oil months with hundreds of calm months. Here we isolate just the shock periods
-            and re-run the same regressions. Does oil matter more when it's moving big?
+            Shocks are auto-detected using daily oil prices: flag days where the 3-month trailing change exceeds 30%, cluster into episodes, then measure exact trough-to-peak returns.
         </p>
 
-        <div class="finding">
-            <p><strong>Oil still doesn't directly move REITs vs S&amp;P, even during shocks.</strong> But oil's effect on rates gets much stronger: the oil&rarr;10Y R&sup2; roughly doubles during shock months.</p>
-        </div>
-        <div class="finding">
-            <p><strong>Oil crashes are different from spikes.</strong> When oil drops &gt;10%, the 10Y rate effect on REITs is highly significant (p&lt;0.01). Oil crashes drag rates down, which helps REITs. Oil spikes are noisier.</p>
-        </div>
-
-        <h3 style="margin-top: 20px;">REIT Excess Return ~ Oil + Rate Changes</h3>
-        <p style="color: var(--gray); font-size: 0.85rem; margin-bottom: 8px;">Same regression, different subsets. 1 SD = {{ oil_std }}% monthly oil move.</p>
-        <div style="overflow-x: auto;">
+        {% if detected_shocks %}
+        <h3 style="margin-top: 20px;">Detected Oil Shock Episodes &mdash; Trough-to-Peak Returns</h3>
+        <div style="overflow-x: auto; margin-bottom: 20px;">
         <table>
             <thead>
                 <tr>
-                    <th>Shock Definition</th><th>N</th><th>R&sup2;</th>
-                    <th>Oil Coef</th><th>Oil t</th><th>Oil p</th><th></th>
-                    <th>10Y Coef</th><th>10Y t</th><th>10Y p</th><th></th>
+                    <th>Episode</th><th>Trough</th><th>Peak</th><th>Days</th>
+                    <th>Oil %</th><th>REIT %</th><th>S&amp;P %</th><th>Excess %</th>
+                    <th>&Delta;10Y</th><th>&Delta;3M</th>
                 </tr>
             </thead>
             <tbody>
-                {% for row in shock_comparison %}
-                <tr{% if row.label == 'Calm months (|oil| < 1 SD)' %} style="background:#e2efda"{% endif %}>
-                    <td><strong>{{ row.label }}</strong></td>
-                    <td>{{ row.n }}</td>
-                    <td>{{ row.r2 }}</td>
-                    {% if row.r2 != 'N/A' %}
-                    <td>{{ row.oil_coef }}</td>
-                    <td>{{ row.oil_t }}</td>
-                    <td>{{ row.oil_p }}</td>
-                    <td class="sig">{{ row.oil_sig }}</td>
-                    <td>{{ row.t10y_coef }}</td>
-                    <td>{{ row.t10y_t }}</td>
-                    <td>{{ row.t10y_p }}</td>
-                    <td class="sig">{{ row.t10y_sig }}</td>
-                    {% else %}
-                    <td colspan="8" style="color:#999">Too few observations</td>
-                    {% endif %}
+                {% for s in detected_shocks %}
+                <tr>
+                    <td><strong>{{ s.label }}</strong></td>
+                    <td>${{ s.trough_price }}</td>
+                    <td>${{ s.peak_price }}</td>
+                    <td>{{ s.trading_days }}</td>
+                    <td>+{{ s.pct_change }}%</td>
+                    <td>{{ s.reit_ret }}%</td>
+                    <td>{{ s.spx_ret }}%</td>
+                    <td>{{ s.excess_ret }}%</td>
+                    <td>{{ s.d_t10y }}</td>
+                    <td>{{ s.d_t3m }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         </div>
+        {% endif %}
 
-        <h3 style="margin-top: 24px;">10Y Rate Change ~ Oil Change</h3>
-        <p style="color: var(--gray); font-size: 0.85rem; margin-bottom: 8px;">Does the oil&rarr;rates channel strengthen during shocks?</p>
+        {% if post_shock_avg %}
+        <h3 style="margin-top: 24px;">Post-Shock Recovery (Average Across All Episodes)</h3>
+        <p style="color: var(--gray); font-size: 0.85rem; margin-bottom: 8px;">Cumulative returns after the oil price peak, averaged across {{ detected_shocks|length }} episodes.</p>
         <div style="overflow-x: auto;">
         <table>
             <thead>
-                <tr>
-                    <th>Shock Definition</th><th>N</th><th>R&sup2;</th>
-                    <th>Oil Coef</th><th>Oil t</th><th>Oil p</th><th></th>
-                </tr>
+                <tr><th>Horizon</th><th>N</th><th>REIT %</th><th>S&amp;P %</th><th>Excess %</th><th>Oil %</th><th>&Delta;10Y</th><th>&Delta;3M</th></tr>
             </thead>
             <tbody>
-                {% for row in shock_t10y %}
-                <tr{% if row.label == 'Calm months (|oil| < 1 SD)' %} style="background:#e2efda"{% endif %}>
-                    <td><strong>{{ row.label }}</strong></td>
-                    <td>{{ row.n }}</td>
-                    <td>{{ row.r2 }}</td>
-                    {% if row.r2 != 'N/A' %}
-                    <td>{{ row.oil_coef }}</td>
-                    <td>{{ row.oil_t }}</td>
-                    <td>{{ row.oil_p }}</td>
-                    <td class="sig">{{ row.oil_sig }}</td>
-                    {% else %}
-                    <td colspan="4" style="color:#999">Too few observations</td>
-                    {% endif %}
+                {% for h in ['3M', '6M', '12M'] %}
+                {% if post_shock_avg.get(h) %}
+                {% set a = post_shock_avg[h] %}
+                <tr>
+                    <td><strong>{{ h }}</strong></td>
+                    <td>{{ a.n }}</td>
+                    <td>{{ a.reit_ret }}%</td>
+                    <td>{{ a.spx_ret }}%</td>
+                    <td>{{ a.excess_ret }}%</td>
+                    <td>{{ a.oil_chg }}%</td>
+                    <td>{{ a.d_t10y }}</td>
+                    <td>{{ a.d_t3m }}</td>
                 </tr>
+                {% endif %}
                 {% endfor %}
             </tbody>
         </table>
         </div>
+        {% endif %}
     </div>
 
     <!-- OIL vs RATES -->
@@ -429,6 +424,7 @@
             <li><strong>Rates:</strong> 3-Month T-Bill (FRED: DTB3) and 10-Year Treasury (FRED: DGS10)</li>
             <li><strong>Main model uses rate changes</strong> (month-over-month) rather than levels, which is more appropriate for return regressions</li>
             <li><strong>Winsorized models</strong> trim the top/bottom 1% of returns to reduce outlier influence (COVID, GFC)</li>
+            <li><strong>Shock detection:</strong> Compute 3-month trailing oil price change; flag months where change exceeds 30%; cluster consecutive flagged months into episodes; for each cluster find peak price and trough (lowest price in 4 months before peak)</li>
             <li><strong>Excel formulas:</strong> Correlation tab uses CORREL(), regression tab uses INDEX(LINEST()) &mdash; all reference the Data tab directly</li>
         </ul>
     </details>
@@ -557,6 +553,42 @@ new Chart(document.getElementById('chart5'), {
         scales: {
             x: { ticks: { maxTicksLimit: 10, maxRotation: 0 }, grid: { color: '#eee' } },
             y: { title: { display: true, text: '$/barrel' }, grid: { color: '#eee' } }
+        }
+    }
+});
+
+// Chart 7: 3-month trailing oil change with 30% threshold
+new Chart(document.getElementById('chart7'), {
+    type: 'line',
+    data: {
+        labels: D.dates,
+        datasets: [
+            {
+                label: '3M Trailing Oil Chg %',
+                data: D.oil_3m_chg,
+                borderColor: 'rgba(0, 24, 168, 0.8)',
+                backgroundColor: 'rgba(0, 24, 168, 0.1)',
+                fill: false,
+                pointRadius: 0,
+                borderWidth: 1.5,
+            },
+            {
+                label: '30% Threshold',
+                data: D.dates.map(() => 30),
+                borderColor: 'rgba(200, 0, 0, 0.6)',
+                borderDash: [6, 4],
+                pointRadius: 0,
+                borderWidth: 1.5,
+                fill: false,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+            x: { ticks: { maxTicksLimit: 10, maxRotation: 0 }, grid: { color: '#eee' } },
+            y: { title: { display: true, text: '3M Trailing Change (%)' }, grid: { color: '#eee' } }
         }
     }
 });
